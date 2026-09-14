@@ -1,0 +1,349 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  CREATOR
+  RECRUITER
+  BUSINESS
+  ADMIN
+}
+
+enum AccountVisibility {
+  PUBLIC
+  FRIENDS
+  PRIVATE
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+  AUDIO
+  DOCUMENT
+}
+
+enum PostType {
+  POST
+  REEL
+  STORY
+  THREAD
+  SNAP
+  JOB_POST
+}
+
+enum JobType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  INTERNSHIP
+  FREELANCE
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  VIDEO
+  AUDIO
+  FILE
+  SYSTEM
+}
+
+model User {
+  id                 String              @id @default(cuid())
+  email              String?             @unique
+  username           String              @unique
+  name               String
+  bio                String?
+  avatarUrl          String?
+  coverUrl           String?
+  phone              String?
+  city               String?
+  country            String?
+  website            String?
+  role               UserRole            @default(USER)
+  visibility         AccountVisibility   @default(PUBLIC)
+  isVerified         Boolean             @default(false)
+  allowAnonymous     Boolean             @default(false)
+  streakCount        Int                 @default(0)
+  xp                 Int                 @default(0)
+  level              Int                 @default(1)
+  skills             String[]
+  interests          String[]
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  posts              Post[]
+  comments           Comment[]
+  reactions          Reaction[]
+  sentMessages       Message[]           @relation("SentMessages")
+  memberships        CommunityMember[]
+  jobs               Job[]               @relation("PostedJobs")
+  applications       JobApplication[]
+  stories            Story[]
+  notifications      Notification[]
+  analytics          CreatorAnalytics?
+  privacySettings    PrivacySettings?
+  monetization       CreatorMonetization?
+  profile            ProfileExtension?
+}
+
+model ProfileExtension {
+  id                 String   @id @default(cuid())
+  userId             String   @unique
+  headline           String?
+  education          String?
+  experience         String?
+  portfolioLinks     String[]
+  resumeUrl          String?
+  businessCategory   String?
+  latitude           Float?
+  longitude          Float?
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model PrivacySettings {
+  id                      String            @id @default(cuid())
+  userId                  String            @unique
+  postVisibility          AccountVisibility @default(PUBLIC)
+  privateProfile          Boolean           @default(false)
+  disappearingMessages    Boolean           @default(false)
+  screenshotAlerts        Boolean           @default(false)
+  e2eeEnabled             Boolean           @default(true)
+  anonymousPosting        Boolean           @default(false)
+  user                    User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Post {
+  id                 String         @id @default(cuid())
+  authorId           String
+  type               PostType       @default(POST)
+  caption            String?
+  body               String?
+  visibility         AccountVisibility @default(PUBLIC)
+  locationName       String?
+  aiCaption          String?
+  aiHashtags         String[]
+  aiModerationScore  Float?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  author             User           @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  media              Media[]
+  comments           Comment[]
+  reactions          Reaction[]
+  saves              Save[]
+  analytics          PostAnalytics?
+  hashtags           PostHashtag[]
+}
+
+model Story {
+  id                 String       @id @default(cuid())
+  authorId           String
+  caption            String?
+  expiresAt          DateTime
+  createdAt          DateTime     @default(now())
+  author             User         @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  media              Media[]
+}
+
+model Media {
+  id                 String       @id @default(cuid())
+  postId             String?
+  storyId            String?
+  type               MediaType
+  url                String
+  thumbnailUrl       String?
+  durationSeconds    Int?
+  width              Int?
+  height             Int?
+  filterPreset       String?
+  createdAt          DateTime     @default(now())
+  post               Post?        @relation(fields: [postId], references: [id], onDelete: Cascade)
+  story              Story?       @relation(fields: [storyId], references: [id], onDelete: Cascade)
+}
+
+model Comment {
+  id                 String       @id @default(cuid())
+  postId             String
+  authorId           String
+  parentId           String?
+  body               String
+  toxicityScore      Float?
+  createdAt          DateTime     @default(now())
+  post               Post         @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author             User         @relation(fields: [authorId], references: [id], onDelete: Cascade)
+}
+
+model Reaction {
+  id                 String       @id @default(cuid())
+  postId             String?
+  commentId          String?
+  userId             String
+  emoji              String       @default("like")
+  createdAt          DateTime     @default(now())
+  post               Post?        @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user               User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Save {
+  id                 String       @id @default(cuid())
+  postId             String
+  userId             String
+  createdAt          DateTime     @default(now())
+  post               Post         @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user               User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+}
+
+model Hashtag {
+  id                 String       @id @default(cuid())
+  label              String       @unique
+  posts              PostHashtag[]
+}
+
+model PostHashtag {
+  postId             String
+  hashtagId          String
+  post               Post         @relation(fields: [postId], references: [id], onDelete: Cascade)
+  hashtag            Hashtag      @relation(fields: [hashtagId], references: [id], onDelete: Cascade)
+
+  @@id([postId, hashtagId])
+}
+
+model Conversation {
+  id                 String       @id @default(cuid())
+  title              String?
+  isGroup            Boolean      @default(false)
+  isEncrypted        Boolean      @default(true)
+  disappearingAfter  Int?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+  members            ConversationMember[]
+  messages           Message[]
+}
+
+model ConversationMember {
+  id                 String       @id @default(cuid())
+  conversationId     String
+  userId             String
+  lastReadAt         DateTime?
+  muted              Boolean      @default(false)
+  conversation       Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user               User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+}
+
+model Message {
+  id                 String       @id @default(cuid())
+  conversationId     String
+  senderId           String
+  type               MessageType  @default(TEXT)
+  body               String?
+  mediaUrl           String?
+  replyToId          String?
+  translatedBody     String?
+  aiReplySuggestion  String?
+  createdAt          DateTime     @default(now())
+  conversation       Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender             User         @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+}
+
+model Community {
+  id                 String       @id @default(cuid())
+  name               String
+  slug               String       @unique
+  description        String?
+  category           String?
+  isPrivate          Boolean      @default(false)
+  createdAt          DateTime     @default(now())
+  members            CommunityMember[]
+}
+
+model CommunityMember {
+  id                 String       @id @default(cuid())
+  communityId        String
+  userId             String
+  role               String       @default("member")
+  joinedAt           DateTime     @default(now())
+  community          Community    @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  user               User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([communityId, userId])
+}
+
+model Job {
+  id                 String       @id @default(cuid())
+  recruiterId        String
+  title              String
+  company            String
+  description        String
+  location           String?
+  salaryMin          Int?
+  salaryMax          Int?
+  jobType            JobType
+  skills             String[]
+  createdAt          DateTime     @default(now())
+  recruiter          User         @relation("PostedJobs", fields: [recruiterId], references: [id], onDelete: Cascade)
+  applications       JobApplication[]
+}
+
+model JobApplication {
+  id                 String       @id @default(cuid())
+  jobId              String
+  applicantId        String
+  coverNote          String?
+  aiMatchScore       Float?
+  createdAt          DateTime     @default(now())
+  job                Job          @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  applicant          User         @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+}
+
+model CreatorAnalytics {
+  id                 String       @id @default(cuid())
+  userId             String       @unique
+  totalReach         Int          @default(0)
+  totalViews         Int          @default(0)
+  totalFollowers     Int          @default(0)
+  engagementRate     Float        @default(0)
+  bestPostHour       Int?
+  updatedAt          DateTime     @updatedAt
+  user               User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model CreatorMonetization {
+  id                 String       @id @default(cuid())
+  userId             String       @unique
+  subscriptionPrice  Float?
+  tipsEnabled        Boolean      @default(false)
+  adRevenueShare     Boolean      @default(false)
+  premiumListing     Boolean      @default(false)
+  updatedAt          DateTime     @updatedAt
+  user               User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model PostAnalytics {
+  id                 String       @id @default(cuid())
+  postId             String       @unique
+  impressions        Int          @default(0)
+  likes              Int          @default(0)
+  comments           Int          @default(0)
+  shares             Int          @default(0)
+  saves              Int          @default(0)
+  post               Post         @relation(fields: [postId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id                 String       @id @default(cuid())
+  userId             String
+  title              String
+  body               String
+  read               Boolean      @default(false)
+  createdAt          DateTime     @default(now())
+  user               User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
