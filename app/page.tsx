@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { onValue, ref } from "firebase/database";
+import { onAuthStateChanged } from "firebase/auth";
 import { Loader2 } from "lucide-react";
 import AuthPanel, { LumiViewer } from "@/components/AuthPanel";
 import AIHub from "@/components/AIHub";
@@ -21,7 +22,7 @@ import ReelsFeed from "@/components/ReelsFeed";
 import RightRail from "@/components/RightRail";
 import StoriesRail from "@/components/StoriesRail";
 import UserSettingsPanel from "@/components/UserSettingsPanel";
-import { realtimeDb } from "@/lib/firebase";
+import { auth, realtimeDb } from "@/lib/firebase";
 import { buildDiscoverPayloadFromRealtime, DiscoverPayload, RealtimePostRecord, RealtimeProfileRecord } from "@/lib/social";
 
 export default function HomePage() {
@@ -35,6 +36,15 @@ export default function HomePage() {
     profiles: {},
     posts: {}
   });
+
+  useEffect(() => onAuthStateChanged(auth, (user: { uid: string; displayName?: string | null; photoURL?: string | null; email?: string | null } | null) => {
+    setViewer(user ? {
+      id: user.uid,
+      name: user.displayName || "Lumi User",
+      avatar: user.photoURL || `https://api.dicebear.com/9.x/notionists/svg?seed=${encodeURIComponent(user.uid)}`,
+      username: user.email ? `@${user.email.split("@")[0]}` : undefined
+    } : null);
+  }), []);
 
   useEffect(() => {
     setIsLoading(true);
@@ -72,16 +82,13 @@ export default function HomePage() {
       }
     }, 10000);
 
-    const profilesRef = ref(realtimeDb, "profiles");
+    const profilesRef = ref(realtimeDb, "publicProfiles");
     const postsRef = ref(realtimeDb, "community/posts");
 
     const unsubProfiles = onValue(
       profilesRef,
       (snapshot: { val: () => unknown }) => {
-        const value = snapshot.val() as Record<string, { public?: RealtimeProfileRecord }> | null;
-        profiles = Object.fromEntries(
-          Object.entries(value ?? {}).map(([id, record]) => [id, record.public ?? {}])
-        );
+        profiles = (snapshot.val() as Record<string, RealtimeProfileRecord> | null) ?? {};
         syncPayload();
       },
       () => {
@@ -149,12 +156,12 @@ export default function HomePage() {
     switch (routeView) {
       case "explore":
         return (
-          <ExplorePanel data={data} isFocusMode={isFocusMode} />
+          <ExplorePanel data={data} viewer={viewer} isFocusMode={isFocusMode} />
         );
       case "clips":
         return (
           <div className="mx-auto max-w-xl">
-            <ReelsFeed feed={data.feed} isFocusMode={isFocusMode} />
+            <ReelsFeed feed={data.feed} viewer={viewer} isFocusMode={isFocusMode} />
           </div>
         );
       case "following":
@@ -175,7 +182,7 @@ export default function HomePage() {
               <NotificationsPanel viewer={viewer} isFocusMode={isFocusMode} />
               <UserSettingsPanel viewer={viewer} isFocusMode={isFocusMode} />
             </div>
-            <ChatWindow isFocusMode={isFocusMode} />
+            <ChatWindow viewer={viewer} isFocusMode={isFocusMode} />
           </div>
         );
       case "live":
@@ -183,7 +190,7 @@ export default function HomePage() {
           <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
             <div className="space-y-6">
               <PostComposer viewer={viewer} isFocusMode={isFocusMode} />
-              <StoriesRail users={data.featuredUsers} isFocusMode={isFocusMode} />
+              <StoriesRail viewer={viewer} isFocusMode={isFocusMode} />
               <CommunitiesPanel isFocusMode={isFocusMode} />
             </div>
             <div className="space-y-6">
@@ -218,7 +225,7 @@ export default function HomePage() {
         return (
           <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
             <div className="mx-auto w-full max-w-[640px] space-y-6">
-              <StoriesRail users={data.featuredUsers} isFocusMode={isFocusMode} />
+              <StoriesRail viewer={viewer} isFocusMode={isFocusMode} />
               <PostComposer viewer={viewer} isFocusMode={isFocusMode} />
               <CommunityFeed viewer={viewer} isFocusMode={isFocusMode} />
             </div>

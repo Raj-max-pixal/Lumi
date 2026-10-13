@@ -37,7 +37,7 @@ export default function UserSettingsPanel({
       return;
     }
 
-    const settingsRef = ref(realtimeDb, `profiles/${viewer.id}/settings`);
+    const settingsRef = ref(realtimeDb, `privateProfiles/${viewer.id}/settings`);
     const unsubscribe = onValue(settingsRef, (snapshot: { val: () => unknown }) => {
       const value = snapshot.val() as SettingsState | null;
       setSettings(value ?? defaultSettings);
@@ -53,7 +53,7 @@ export default function UserSettingsPanel({
       return;
     }
 
-    const settingsRef = ref(realtimeDb, `profiles/${viewer.id}/settings`);
+    const settingsRef = ref(realtimeDb, `privateProfiles/${viewer.id}/settings`);
     await set(settingsRef, next);
     setStatus("Saved to Firebase.");
   }

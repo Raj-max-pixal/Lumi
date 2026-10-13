@@ -1,29 +1,28 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Search, X } from "lucide-react";
 import LumiCard from "@/components/LumiCard";
 import { DiscoverPayload, FeedItem } from "@/lib/social";
+import { LumiViewer } from "@/components/AuthPanel";
+import { togglePostLike, togglePostSave } from "@/lib/social-firebase";
 
 const categories = ["All", "Photos", "Reels", "Threads"] as const;
 
 export default function ExplorePanel({
   data,
+  viewer,
   isFocusMode = false
 }: {
   data: DiscoverPayload;
+  viewer: LumiViewer | null;
   isFocusMode?: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<(typeof categories)[number]>("All");
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [likedIds, setLikedIds] = useState<string[]>([]);
-  const [savedIds, setSavedIds] = useState<string[]>([]);
-
-  useEffect(() => {
-    console.log("Explore loaded");
-  }, [data.feed.length]);
+  const [message, setMessage] = useState("");
 
   const filteredFeed = useMemo(() => {
     const trimmed = query.trim().toLowerCase();
@@ -51,12 +50,24 @@ export default function ExplorePanel({
     [data.feed, filteredFeed, selectedId]
   );
 
-  function toggleLiked(id: string) {
-    setLikedIds((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
+  async function toggleLiked(item: FeedItem) {
+    if (!viewer) return setMessage("Sign in to like posts.");
+    try {
+      await togglePostLike(item.id, viewer.id, Boolean(item.likedBy?.[viewer.id]));
+      setMessage("");
+    } catch {
+      setMessage("Could not save your like. Check Firebase access.");
+    }
   }
 
-  function toggleSaved(id: string) {
-    setSavedIds((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
+  async function toggleSaved(item: FeedItem) {
+    if (!viewer) return setMessage("Sign in to save posts.");
+    try {
+      await togglePostSave(item.id, viewer.id, Boolean(item.savedBy?.[viewer.id]));
+      setMessage("");
+    } catch {
+      setMessage("Could not save this post. Check Firebase access.");
+    }
   }
 
   function DetailCard({ item }: { item: FeedItem }) {
@@ -72,16 +83,16 @@ export default function ExplorePanel({
         imageUrl={item.imageUrl}
         videoUrl={item.videoUrl}
         comments={item.comments}
-        likes={item.likes + (likedIds.includes(item.id) ? 1 : 0)}
+        likes={item.likes}
         commentsCount={item.commentsCount}
         shares={item.shares}
         tags={item.tags}
-        onLike={() => toggleLiked(item.id)}
-        onSave={() => toggleSaved(item.id)}
+        onLike={() => void toggleLiked(item)}
+        onSave={() => void toggleSaved(item)}
         onComment={() => setSelectedId(item.id)}
         onOpenDetail={() => setSelectedId(item.id)}
-        isLiked={likedIds.includes(item.id)}
-        isSaved={savedIds.includes(item.id)}
+        isLiked={Boolean(viewer && item.likedBy?.[viewer.id])}
+        isSaved={Boolean(viewer && item.savedBy?.[viewer.id])}
       />
     );
   }
@@ -127,6 +138,7 @@ export default function ExplorePanel({
           ))}
         </div>
       </div>
+      {message ? <p role="status" className="text-sm text-rose-500">{message}</p> : null}
 
       {filteredFeed.length ? (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">

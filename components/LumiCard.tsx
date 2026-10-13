@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { Bookmark, Heart, MessageCircle, MoreHorizontal, Play, Send, ThumbsUp, Verified } from "lucide-react";
+import { Bookmark, Heart, MessageCircle, MoreHorizontal, Play, Send } from "lucide-react";
 import { useState } from "react";
 import { FeedComment } from "@/lib/social";
 
@@ -57,16 +57,6 @@ function NestedComments({ nodes, isFocusMode = false, depth = 0 }: { nodes: Feed
             <span className={isFocusMode ? "text-xs text-slate-400" : "text-xs text-white/40"}>{comment.upvotes} likes</span>
           </div>
           <p className={isFocusMode ? "text-sm leading-6 text-slate-700" : "text-sm leading-6 text-white/75"}>{comment.body}</p>
-          <div className={isFocusMode ? "mt-3 flex items-center gap-4 text-xs text-slate-500" : "mt-3 flex items-center gap-4 text-xs text-white/50"}>
-            <span className="inline-flex items-center gap-1">
-              <ThumbsUp className="h-3.5 w-3.5" />
-              Like
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <MessageCircle className="h-3.5 w-3.5" />
-              Reply
-            </span>
-          </div>
           {comment.children?.length ? (
             <div className="mt-4 border-l border-white/10 pl-4">
               <NestedComments nodes={comment.children} depth={depth + 1} />
@@ -81,17 +71,17 @@ function NestedComments({ nodes, isFocusMode = false, depth = 0 }: { nodes: Feed
 export default function LumiCard({
   contentType,
   isFocusMode = false,
-  author = "Lumi Creator",
+  author = "Lumi User",
   handle = "@lumi",
-  avatarUrl = "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=400&q=80",
-  title = "Built for the next generation of creators",
-  description = "One feed for creativity, sharing, and connection.",
-  imageUrl = "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1200&q=80",
-  videoUrl = "https://www.youtube.com/embed/ysz5S6PUM-U?rel=0&modestbranding=1",
+  avatarUrl = "https://api.dicebear.com/9.x/notionists/svg?seed=LumiProfile",
+  title = "Post",
+  description = "",
+  imageUrl = "",
+  videoUrl = "",
   comments = [],
-  likes = 12900,
-  commentsCount = 432,
-  shares = 88,
+  likes = 0,
+  commentsCount = 0,
+  shares = 0,
   onDoubleTap,
   onLike,
   onComment,
@@ -125,39 +115,27 @@ export default function LumiCard({
               <Image src={avatarUrl} alt={author} fill className="object-cover" />
             </div>
             <div>
-              <p className="inline-flex items-center gap-1 text-sm font-semibold">
-                {author}
-                <Verified className="h-4 w-4 fill-lumi-purple text-lumi-purple" />
-              </p>
+              <p className="text-sm font-semibold">{author}</p>
               <p className={isFocusMode ? "text-xs text-slate-500" : "text-xs text-white/55"}>{handle}</p>
             </div>
           </div>
-          <button type="button" onClick={onOpenDetail} className={isFocusMode ? "text-slate-400" : "text-white/60"}>
-            <MoreHorizontal className="h-5 w-5" />
-          </button>
+          {onOpenDetail ? <button type="button" onClick={onOpenDetail} aria-label="Open post details" className={isFocusMode ? "text-slate-400" : "text-white/60"}><MoreHorizontal className="h-5 w-5" /></button> : null}
         </div>
       </div>
 
       {contentType === "video" ? (
         <div className="relative aspect-[4/5] overflow-hidden border-y border-current/10">
-          <iframe
-            className="h-full w-full"
-            src={videoUrl}
-            title={title}
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-          />
+          <video className="h-full w-full bg-black object-contain" src={videoUrl} controls playsInline preload="metadata" aria-label={title} />
           <div className="pointer-events-none absolute bottom-4 left-4 flex items-center gap-2 rounded-full bg-black/45 px-3 py-1 text-xs text-white">
             <Play className="h-3.5 w-3.5 fill-current" />
             Reel
           </div>
-          <button type="button" onClick={onOpenDetail} className="absolute inset-0" aria-label="Open reel details" />
         </div>
       ) : null}
 
       {contentType === "image" ? (
         <div className="relative aspect-[4/5] overflow-hidden border-y border-current/10" onDoubleClick={triggerHeartBurst}>
-          <Image src={imageUrl} alt={title} fill className="object-cover" />
+          <Image src={imageUrl} alt={title} fill sizes="(max-width: 640px) 100vw, 640px" className="object-cover" />
           {showHeartBurst ? (
             <motion.div
               initial={{ opacity: 0, scale: 0.6 }}
@@ -170,7 +148,7 @@ export default function LumiCard({
               </div>
             </motion.div>
           ) : null}
-          <button type="button" onClick={onOpenDetail} className="absolute inset-0" aria-label="Open post details" />
+          {onOpenDetail ? <button type="button" onClick={onOpenDetail} className="absolute inset-0" aria-label="Open post details" /> : null}
         </div>
       ) : null}
 
@@ -178,52 +156,26 @@ export default function LumiCard({
         <button type="button" onClick={onOpenDetail} className="block w-full p-4 text-left">
           <h3 className="text-sm font-semibold">{title}</h3>
           <p className={isFocusMode ? "mt-2 text-sm leading-6 text-slate-700" : "mt-2 text-sm leading-6 text-white/78"}>{description}</p>
-          <div className="mt-4">
-            <NestedComments
-              nodes={
-                comments.length
-                  ? comments
-                  : [
-                      {
-                        id: "1",
-                        author: "Aanya",
-                        handle: "@uxloops",
-                        body: "This already feels cleaner and much closer to a real social post flow.",
-                        upvotes: 420,
-                        children: [
-                          {
-                            id: "2",
-                            author: "Rahul",
-                            handle: "@buildwithrahul",
-                            body: "The simplified card layout is much easier to scan.",
-                            upvotes: 123
-                          }
-                        ]
-                      }
-                    ]
-              }
-              isFocusMode={isFocusMode}
-            />
-          </div>
+          {comments.length ? <div className="mt-4"><NestedComments nodes={comments} isFocusMode={isFocusMode} /></div> : null}
         </button>
       ) : null}
 
       <div className={`px-4 py-3 ${isFocusMode ? "text-slate-500" : "text-white/60"}`}>
         <div className="mb-3 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <button type="button" onClick={onLike} className="transition hover:scale-110">
+            {onLike ? <button type="button" onClick={onLike} aria-label="Like post" className="transition hover:scale-110">
               <Heart className={`h-5 w-5 ${isLiked ? "fill-rose-500 text-rose-500" : ""}`} />
-            </button>
-            <button type="button" onClick={onComment ?? onOpenDetail} className="transition hover:scale-110">
+            </button> : null}
+            {onComment || onOpenDetail ? <button type="button" onClick={onComment ?? onOpenDetail} aria-label="View comments" className="transition hover:scale-110">
               <MessageCircle className="h-5 w-5" />
-            </button>
-            <button type="button" onClick={onShare} className="transition hover:scale-110">
+            </button> : null}
+            {onShare ? <button type="button" onClick={onShare} aria-label="Share post" className="transition hover:scale-110">
               <Send className="h-5 w-5" />
-            </button>
+            </button> : null}
           </div>
-          <button type="button" onClick={onSave} className="transition hover:scale-110">
+          {onSave ? <button type="button" onClick={onSave} aria-label="Save post" className="transition hover:scale-110">
             <Bookmark className={`h-5 w-5 ${isSaved ? "fill-current" : ""}`} />
-          </button>
+          </button> : null}
         </div>
 
         <div className={`space-y-1 text-sm ${isFocusMode ? "text-slate-900" : "text-white"}`}>
@@ -232,9 +184,7 @@ export default function LumiCard({
             <span className="mr-2 font-semibold">{handle}</span>
             <span className={isFocusMode ? "text-slate-700" : "text-white/80"}>{description}</span>
           </p>
-          <button type="button" onClick={onComment ?? onOpenDetail} className={isFocusMode ? "text-slate-500" : "text-white/55"}>
-            View all {commentsCount} comments
-          </button>
+          {onComment || onOpenDetail ? <button type="button" onClick={onComment ?? onOpenDetail} className={isFocusMode ? "text-slate-500" : "text-white/55"}>View all {commentsCount} comments</button> : null}
         </div>
       </div>
     </motion.article>

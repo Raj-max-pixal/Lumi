@@ -1,0 +1,80 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "publicProfiles": {
+      ".read": true,
+      "$uid": {
+        ".write": "auth !== null && auth.uid === $uid",
+        ".validate": "newData.hasChildren(['name', 'avatar', 'username'])"
+      }
+    },
+    "privateProfiles": {
+      "$uid": {
+        ".read": "auth !== null && auth.uid === $uid",
+        ".write": "auth !== null && auth.uid === $uid"
+      }
+    },
+    "community": {
+      "posts": {
+        ".read": true,
+        "$postId": {
+          ".write": "auth !== null && !data.exists() && newData.child('authorId').val() === auth.uid",
+          ".validate": "newData.hasChildren(['authorId', 'authorName', 'caption', 'createdAt'])",
+          "likedBy": {
+            "$uid": { ".write": "auth !== null && auth.uid === $uid", ".validate": "newData.val() === true" }
+          },
+          "savedBy": {
+            "$uid": { ".write": "auth !== null && auth.uid === $uid", ".validate": "newData.val() === true" }
+          },
+          "comments": {
+            "$commentId": {
+              ".write": "auth !== null && ((!data.exists() && newData.child('authorId').val() === auth.uid) || (data.child('authorId').val() === auth.uid && !newData.exists()))",
+              ".validate": "newData.hasChildren(['authorId', 'body', 'createdAt']) && newData.child('body').isString() && newData.child('body').val().length <= 2000"
+            }
+          }
+        }
+      }
+    },
+    "stories": {
+      ".read": true,
+      "$storyId": {
+        ".write": "auth !== null && !data.exists() && newData.child('authorId').val() === auth.uid",
+        ".validate": "newData.hasChildren(['authorId', 'mediaUrl', 'createdAt', 'expiresAt']) && newData.child('expiresAt').val() <= now + 86400000"
+      }
+    },
+    "relationships": {
+      "following": {
+        ".read": true,
+        "$uid": { "$targetId": { ".write": "auth !== null && auth.uid === $uid" } }
+      },
+      "followers": {
+        ".read": true,
+        "$uid": { "$sourceId": { ".write": "auth !== null && auth.uid === $sourceId" } }
+      }
+    },
+    "notifications": {
+      "$uid": {
+        ".read": "auth !== null && auth.uid === $uid",
+        "$notificationId": {
+          ".write": "auth !== null && !data.exists()",
+          ".validate": "newData.hasChildren(['title', 'body', 'createdAt'])"
+        }
+      }
+    },
+    "directMessages": {
+      "$roomId": {
+        ".read": "auth !== null && data.child('participants').child(auth.uid).val() === true",
+        "participants": {
+          ".write": "auth !== null && newData.child(auth.uid).val() === true && (!data.exists() || data.child(auth.uid).val() === true)"
+        },
+        "messages": {
+          "$messageId": {
+            ".write": "auth !== null && root.child('directMessages').child($roomId).child('participants').child(auth.uid).val() === true && !data.exists() && newData.child('senderId').val() === auth.uid",
+            ".validate": "newData.hasChildren(['senderId', 'text', 'createdAt']) && newData.child('text').isString() && newData.child('text').val().length <= 2000"
+          }
+        }
+      }
+    }
+  }
+}

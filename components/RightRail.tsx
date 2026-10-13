@@ -32,7 +32,7 @@ export default function RightRail({
     }
 
     const followingRef = ref(realtimeDb, `relationships/following/${viewer.id}`);
-    const profileRef = ref(realtimeDb, `profiles/${viewer.id}/public`);
+    const profileRef = ref(realtimeDb, `publicProfiles/${viewer.id}`);
 
     const unsubFollowing = onValue(followingRef, (snapshot: { val: () => unknown }) => {
       const value = snapshot.val() as Record<string, { createdAt: number }> | null;

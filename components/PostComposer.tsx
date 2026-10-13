@@ -16,13 +16,22 @@ export default function PostComposer({
   isFocusMode?: boolean;
 }) {
   const [caption, setCaption] = useState("");
-  const [imageUrl, setImageUrl] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [isPosting, setIsPosting] = useState(false);
   const [status, setStatus] = useState("");
 
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
-    setFile(event.target.files?.[0] ?? null);
+    const selected = event.target.files?.[0] ?? null;
+    if (selected && !(selected.type.startsWith("image/") || selected.type.startsWith("video/"))) {
+      setStatus("Choose a photo or video file.");
+      return;
+    }
+    if (selected && selected.size > (selected.type.startsWith("video/") ? 50 : 15) * 1024 * 1024) {
+      setStatus("Photos must be under 15 MB and videos under 50 MB.");
+      return;
+    }
+    setFile(selected);
+    setStatus("");
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -33,8 +42,8 @@ export default function PostComposer({
       return;
     }
 
-    if (!caption.trim()) {
-      setStatus("Write something before sharing.");
+    if (!caption.trim() && !file) {
+      setStatus("Add a photo, video, or caption before sharing.");
       return;
     }
 
@@ -42,12 +51,13 @@ export default function PostComposer({
     setStatus("");
 
     try {
-      let finalImageUrl = imageUrl.trim();
+      let mediaUrl = "";
+      const isVideo = Boolean(file?.type.startsWith("video/"));
 
       if (file) {
         const postAssetRef = storageRef(storage, `lumi-posts/${viewer.id}/${Date.now()}-${file.name}`);
-        await uploadBytes(postAssetRef, file);
-        finalImageUrl = await getDownloadURL(postAssetRef);
+        await uploadBytes(postAssetRef, file, { contentType: file.type });
+        mediaUrl = await getDownloadURL(postAssetRef);
       }
 
       const postsRef = ref(realtimeDb, "community/posts");
@@ -58,13 +68,14 @@ export default function PostComposer({
         authorName: viewer.name,
         authorAvatar: viewer.avatar,
         caption: caption.trim(),
-        imageUrl: finalImageUrl || "",
+        imageUrl: isVideo ? "" : mediaUrl,
+        videoUrl: isVideo ? mediaUrl : "",
         createdAt: Date.now(),
         likes: 0,
         commentsCount: 0,
         shares: 0,
         savedCount: 0,
-        tags: finalImageUrl ? ["Photo"] : ["Post"],
+        tags: isVideo ? ["Reel"] : mediaUrl ? ["Photo"] : ["Post"],
         likedBy: {},
         savedBy: {},
         comments: {}
@@ -73,7 +84,6 @@ export default function PostComposer({
       await createNotification(viewer.id, "Post published", "Your post is now live on Lumi.");
 
       setCaption("");
-      setImageUrl("");
       setFile(null);
       setStatus("Shared.");
     } catch {
@@ -89,34 +99,26 @@ export default function PostComposer({
         <textarea
           value={caption}
           onChange={(event) => setCaption(event.target.value)}
-          placeholder="Share something with your followers..."
+          placeholder="Write a caption..."
           className={`min-h-28 w-full rounded-[18px] border p-4 text-sm outline-none ${
             isFocusMode ? "border-slate-200 bg-slate-50 text-slate-900" : "border-white/10 bg-black/25 text-white"
           }`}
         />
 
-        <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_220px]">
-          <input
-            value={imageUrl}
-            onChange={(event) => setImageUrl(event.target.value)}
-            placeholder="Paste an image URL"
-            className={`rounded-full border px-4 py-3 text-sm outline-none ${
-              isFocusMode ? "border-slate-200 bg-slate-50 text-slate-900" : "border-white/10 bg-black/25 text-white"
-            }`}
-          />
+        <div className="flex flex-wrap gap-4">
           <label
             className={`flex cursor-pointer items-center justify-center gap-2 rounded-full border px-4 py-3 text-sm ${
               isFocusMode ? "border-slate-200 bg-slate-50 text-slate-700" : "border-white/10 bg-black/25 text-white/80"
             }`}
           >
             <ImagePlus className="h-4 w-4" />
-            {file ? file.name.slice(0, 18) : "Upload image"}
-            <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
+            {file ? file.name.slice(0, 28) : "Upload photo or reel"}
+            <input type="file" accept="image/*,video/*" onChange={handleFileChange} className="hidden" />
           </label>
         </div>
 
         <div className="flex items-center justify-between gap-4">
-          <p className={isFocusMode ? "text-sm text-slate-500" : "text-sm text-white/55"}>{status || "Photo, caption, and quick share."}</p>
+          <p role="status" className={isFocusMode ? "text-sm text-slate-500" : "text-sm text-white/55"}>{status || "Share a photo, video reel, or caption."}</p>
           <button
             type="submit"
             disabled={isPosting}

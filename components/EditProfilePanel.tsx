@@ -40,7 +40,7 @@ export default function EditProfilePanel({
       return;
     }
 
-    const profileRef = ref(realtimeDb, `profiles/${viewer.id}/public`);
+    const profileRef = ref(realtimeDb, `publicProfiles/${viewer.id}`);
     const unsubscribe = onValue(profileRef, (snapshot: { val: () => unknown }) => {
       const value = snapshot.val() as Partial<EditableProfile> | null;
       setProfile({
@@ -82,7 +82,7 @@ export default function EditProfilePanel({
         city: profile.city.trim()
       });
 
-      await set(ref(realtimeDb, `profiles/${viewer.id}/meta`), {
+      await set(ref(realtimeDb, `privateProfiles/${viewer.id}/meta`), {
         updatedAt: Date.now()
       });
 

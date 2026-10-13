@@ -3,8 +3,8 @@
 @tailwind utilities;
 
 :root {
-  --font-sans: "Manrope";
-  --font-display: "Sora";
+  --font-sans: "Segoe UI", Arial, sans-serif;
+  --font-display: "Segoe UI", Arial, sans-serif;
 }
 
 html {

@@ -1,17 +1,6 @@
 import type { Metadata } from "next";
-import { Manrope, Sora } from "next/font/google";
 import "./globals.css";
 import LumiShell from "@/components/LumiShell";
-
-const manrope = Manrope({
-  subsets: ["latin"],
-  variable: "--font-sans"
-});
-
-const sora = Sora({
-  subsets: ["latin"],
-  variable: "--font-display"
-});
 
 export const metadata: Metadata = {
   title: "Lumi",
@@ -26,7 +15,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${manrope.variable} ${sora.variable}`}>
+      <body>
         <LumiShell>{children}</LumiShell>
       </body>
     </html>

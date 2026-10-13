@@ -8,7 +8,7 @@ import { Bookmark, Filter, Heart, Loader2, MessageCircle, Search, Trash2, X } fr
 import { realtimeDb } from "@/lib/firebase";
 import LumiCard from "@/components/LumiCard";
 import { LumiViewer } from "@/components/AuthPanel";
-import { createNotification } from "@/lib/social-firebase";
+import { createNotification, togglePostLike, togglePostSave } from "@/lib/social-firebase";
 
 type CommunityComment = {
   id: string;
@@ -26,6 +26,7 @@ type CommunityPost = {
   authorAvatar: string;
   caption: string;
   imageUrl?: string;
+  videoUrl?: string;
   createdAt: number;
   likes: number;
   commentsCount: number;
@@ -36,11 +37,6 @@ type CommunityPost = {
   likedBy?: Record<string, true>;
   savedBy?: Record<string, true>;
 };
-
-function scorePost(post: CommunityPost) {
-  const ageHours = Math.max(1, (Date.now() - post.createdAt) / 3_600_000);
-  return post.likes * 4 + post.commentsCount * 6 + (post.savedCount ?? 0) * 5 + post.shares * 3 - ageHours;
-}
 
 export default function CommunityFeed({
   viewer,
@@ -81,8 +77,13 @@ export default function CommunityFeed({
         }
 
         const nextPosts = Object.entries(value)
-          .map(([id, payload]) => ({ id, ...payload }))
-          .sort((a, b) => scorePost(b) - scorePost(a));
+          .map(([id, payload]) => ({
+            id, ...payload,
+            likes: Object.keys(payload.likedBy ?? {}).length,
+            commentsCount: Object.keys(payload.comments ?? {}).length,
+            savedCount: Object.keys(payload.savedBy ?? {}).length
+          }))
+          .sort((a, b) => b.createdAt - a.createdAt);
 
         setPosts(nextPosts);
         setIsLoading(false);
@@ -160,16 +161,9 @@ export default function CommunityFeed({
 
     const alreadyLiked = Boolean(post.likedBy?.[viewer.id]);
 
-    if (alreadyLiked) {
-      await remove(ref(realtimeDb, `community/posts/${post.id}/likedBy/${viewer.id}`));
-      await set(ref(realtimeDb, `community/posts/${post.id}/likes`), Math.max(0, (post.likes ?? 0) - 1));
-      return;
-    }
+    await togglePostLike(post.id, viewer.id, alreadyLiked);
 
-    await set(ref(realtimeDb, `community/posts/${post.id}/likedBy/${viewer.id}`), true);
-    await set(ref(realtimeDb, `community/posts/${post.id}/likes`), (post.likes ?? 0) + 1);
-
-    if (post.authorId !== viewer.id) {
+    if (!alreadyLiked && post.authorId !== viewer.id) {
       await createNotification(post.authorId, "New like", `${viewer.name} liked your post.`);
     }
   }
@@ -181,14 +175,7 @@ export default function CommunityFeed({
 
     const alreadySaved = Boolean(post.savedBy?.[viewer.id]);
 
-    if (alreadySaved) {
-      await remove(ref(realtimeDb, `community/posts/${post.id}/savedBy/${viewer.id}`));
-      await set(ref(realtimeDb, `community/posts/${post.id}/savedCount`), Math.max(0, (post.savedCount ?? 0) - 1));
-      return;
-    }
-
-    await set(ref(realtimeDb, `community/posts/${post.id}/savedBy/${viewer.id}`), true);
-    await set(ref(realtimeDb, `community/posts/${post.id}/savedCount`), (post.savedCount ?? 0) + 1);
+    await togglePostSave(post.id, viewer.id, alreadySaved);
   }
 
   async function addComment(post: CommunityPost) {
@@ -211,7 +198,6 @@ export default function CommunityFeed({
       createdAt: Date.now()
     });
 
-    await set(ref(realtimeDb, `community/posts/${post.id}/commentsCount`), (post.commentsCount ?? 0) + 1);
     setCommentDrafts((current) => ({ ...current, [post.id]: "" }));
 
     if (post.authorId !== viewer.id) {
@@ -226,7 +212,6 @@ export default function CommunityFeed({
     }
 
     await remove(ref(realtimeDb, `community/posts/${post.id}/comments/${commentId}`));
-    await set(ref(realtimeDb, `community/posts/${post.id}/commentsCount`), Math.max(0, (post.commentsCount ?? 0) - 1));
   }
 
   return (
@@ -240,7 +225,7 @@ export default function CommunityFeed({
           <div>
             <h2 className={`font-display text-xl font-semibold ${isFocusMode ? "text-slate-900" : "text-white"}`}>Community feed</h2>
             <p className={isFocusMode ? "text-sm text-slate-500" : "text-sm text-white/55"}>
-              Firebase-powered feed ranked by engagement and focused on people you follow.
+              Recent posts from real Lumi accounts.
             </p>
           </div>
           <div className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs ${
@@ -291,20 +276,19 @@ export default function CommunityFeed({
                   >
                     View @{post.authorName}
                   </Link>
-                  <div className={isFocusMode ? "text-xs text-slate-400" : "text-xs text-white/45"}>
-                    Score {Math.round(scorePost(post))}
-                  </div>
+                  <div className={isFocusMode ? "text-xs text-slate-400" : "text-xs text-white/45"}>{new Date(post.createdAt).toLocaleDateString()}</div>
                 </div>
 
                 <LumiCard
-                  contentType={post.imageUrl ? "image" : "thread"}
+                  contentType={post.videoUrl ? "video" : post.imageUrl ? "image" : "thread"}
                   isFocusMode={isFocusMode}
                   author={post.authorName}
                   handle={`@${post.authorId.slice(0, 8)}`}
                   avatarUrl={post.authorAvatar}
-                  title={post.imageUrl ? "Community spotlight" : "Community thread"}
+                  title={post.videoUrl ? "Reel" : post.imageUrl ? "Photo" : "Post"}
                   description={post.caption}
                   imageUrl={post.imageUrl}
+                  videoUrl={post.videoUrl}
                   likes={post.likes}
                   commentsCount={post.commentsCount}
                   shares={post.shares}
@@ -455,16 +439,17 @@ export default function CommunityFeed({
               </div>
 
               <div className="grid max-h-[calc(90vh-73px)] overflow-hidden md:grid-cols-[1.1fr_0.9fr]">
-                <div className={`relative min-h-[320px] ${selectedPost.imageUrl ? "" : isFocusMode ? "bg-slate-50" : "bg-black/20"}`}>
-                  {selectedPost.imageUrl ? (
+                <div className={`relative min-h-[320px] ${selectedPost.imageUrl || selectedPost.videoUrl ? "" : isFocusMode ? "bg-slate-50" : "bg-black/20"}`}>
+                  {selectedPost.imageUrl || selectedPost.videoUrl ? (
                     <LumiCard
-                      contentType="image"
+                      contentType={selectedPost.videoUrl ? "video" : "image"}
                       isFocusMode={isFocusMode}
                       author={selectedPost.authorName}
                       handle={`@${selectedPost.authorId.slice(0, 8)}`}
                       avatarUrl={selectedPost.authorAvatar}
                       description={selectedPost.caption}
                       imageUrl={selectedPost.imageUrl}
+                      videoUrl={selectedPost.videoUrl}
                       likes={selectedPost.likes}
                       commentsCount={selectedPost.commentsCount}
                       shares={selectedPost.shares}

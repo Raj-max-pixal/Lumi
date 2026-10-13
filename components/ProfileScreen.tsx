@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Grid3X3, Layers3, PlaySquare } from "lucide-react";
+import { Grid3X3, PlaySquare } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { onValue, ref } from "firebase/database";
 import { realtimeDb } from "@/lib/firebase";
@@ -24,11 +24,13 @@ type ProfilePost = {
   authorAvatar: string;
   caption: string;
   imageUrl?: string;
+  videoUrl?: string;
   createdAt: number;
   likes: number;
   commentsCount: number;
   shares: number;
   savedCount?: number;
+  savedBy?: Record<string, true>;
   tags?: string[];
 };
 
@@ -43,14 +45,14 @@ export default function ProfileScreen({
   const [followers, setFollowers] = useState<string[]>([]);
   const [following, setFollowing] = useState<string[]>([]);
   const [viewerFollowing, setViewerFollowing] = useState<string[]>([]);
-  const [activeTab, setActiveTab] = useState<"posts" | "reels" | "tagged">("posts");
+  const [activeTab, setActiveTab] = useState<"posts" | "reels">("posts");
 
   useEffect(() => {
     if (!targetUserId) {
       return;
     }
 
-    const profileRef = ref(realtimeDb, `profiles/${targetUserId}/public`);
+    const profileRef = ref(realtimeDb, `publicProfiles/${targetUserId}`);
     const postsRef = ref(realtimeDb, "community/posts");
     const followersRef = ref(realtimeDb, `relationships/followers/${targetUserId}`);
     const followingRef = ref(realtimeDb, `relationships/following/${targetUserId}`);
@@ -116,6 +118,7 @@ export default function ProfileScreen({
       profile ?? {
         id: targetUserId ?? "unknown",
         name: "Lumi User",
+        username: `@${(targetUserId ?? "unknown").slice(0, 8)}`,
         avatar: "https://api.dicebear.com/9.x/notionists/svg?seed=LumiProfile",
         bio: "",
         city: "",
@@ -127,11 +130,7 @@ export default function ProfileScreen({
 
   const tabbedPosts = useMemo(() => {
     if (activeTab === "reels") {
-      return posts.filter((post) => !post.imageUrl);
-    }
-
-    if (activeTab === "tagged") {
-      return posts.filter((post) => Boolean(post.imageUrl)).slice(0, 3);
+      return posts.filter((post) => Boolean(post.videoUrl));
     }
 
     return posts;
@@ -164,7 +163,7 @@ export default function ProfileScreen({
           <div className="space-y-6">
             <div>
               <div className="flex flex-wrap items-center gap-4">
-                <p className={`text-2xl font-semibold ${isFocusMode ? "text-slate-900" : "text-white"}`}>{safeProfile.name}</p>
+                <div><p className={`text-2xl font-semibold ${isFocusMode ? "text-slate-900" : "text-white"}`}>{safeProfile.name}</p><p className="text-sm opacity-60">{safeProfile.username ?? `@${safeProfile.id.slice(0, 8)}`}</p></div>
                 {!isOwnProfile && viewer ? (
                   <button
                     type="button"
@@ -186,7 +185,7 @@ export default function ProfileScreen({
                 { label: "Posts", value: posts.length },
                 { label: "Followers", value: followers.length },
                 { label: "Following", value: following.length },
-                { label: "Saves", value: posts.reduce((sum, post) => sum + (post.savedCount ?? 0), 0) }
+                { label: "Saves", value: posts.reduce((sum, post) => sum + Object.keys(post.savedBy ?? {}).length, 0) }
               ].map((item) => (
                 <div key={item.label} className="p-1">
                   <p className={`text-xl font-semibold ${isFocusMode ? "text-slate-950" : "text-white"}`}>{item.value}</p>
@@ -233,12 +232,11 @@ export default function ProfileScreen({
           {[
             { id: "posts", label: "Posts", icon: Grid3X3 },
             { id: "reels", label: "Reels", icon: PlaySquare },
-            { id: "tagged", label: "Tagged", icon: Layers3 }
           ].map(({ id, label, icon: Icon }) => (
             <button
               key={id}
               type="button"
-              onClick={() => setActiveTab(id as "posts" | "reels" | "tagged")}
+              onClick={() => setActiveTab(id as "posts" | "reels")}
               className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm ${
                 activeTab === id
                   ? isFocusMode
@@ -260,7 +258,7 @@ export default function ProfileScreen({
             {tabbedPosts.map((post) => (
               <LumiCard
                 key={post.id}
-                contentType={post.imageUrl ? "image" : "thread"}
+                contentType={post.videoUrl ? "video" : post.imageUrl ? "image" : "thread"}
                 isFocusMode={isFocusMode}
                 author={post.authorName}
                 handle={`@${post.authorId.slice(0, 8)}`}
@@ -268,6 +266,7 @@ export default function ProfileScreen({
                 title={post.imageUrl ? "Profile post" : "Profile thread"}
                 description={post.caption}
                 imageUrl={post.imageUrl}
+                videoUrl={post.videoUrl}
                 likes={post.likes}
                 commentsCount={post.commentsCount}
                 shares={post.shares}

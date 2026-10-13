@@ -29,6 +29,8 @@ export type FeedItem = {
   shares: number;
   tags: string[];
   comments?: FeedComment[];
+  likedBy?: Record<string, true>;
+  savedBy?: Record<string, true>;
 };
 
 export type TrendingTopic = {
@@ -65,6 +67,7 @@ export type RealtimePostRecord = {
   authorAvatar: string;
   caption: string;
   imageUrl?: string;
+  videoUrl?: string;
   createdAt: number;
   likes: number;
   commentsCount: number;
@@ -72,6 +75,8 @@ export type RealtimePostRecord = {
   savedCount?: number;
   tags?: string[];
   comments?: Record<string, RealtimeCommentRecord>;
+  likedBy?: Record<string, true>;
+  savedBy?: Record<string, true>;
 };
 
 function buildUsername(value: string, fallbackId: string) {
@@ -128,7 +133,7 @@ export function buildDiscoverPayloadFromRealtime(args: {
       };
 
       const tags = post.tags?.length ? post.tags : extractTags(post.caption);
-      const contentType: FeedItem["contentType"] = post.imageUrl ? "image" : "thread";
+      const contentType: FeedItem["contentType"] = post.videoUrl ? "video" : post.imageUrl ? "image" : "thread";
 
       return {
         id,
@@ -137,9 +142,9 @@ export function buildDiscoverPayloadFromRealtime(args: {
         title: titleFromCaption(post.caption, contentType),
         description: post.caption,
         imageUrl: post.imageUrl || undefined,
-        videoUrl: undefined,
-        likes: post.likes ?? 0,
-        commentsCount: post.commentsCount ?? 0,
+        videoUrl: post.videoUrl || undefined,
+        likes: Object.keys(post.likedBy ?? {}).length,
+        commentsCount: Object.keys(post.comments ?? {}).length,
         shares: post.shares ?? 0,
         tags: tags.length ? tags : [contentType === "image" ? "Photo" : "Thread"],
         comments: Object.entries(post.comments ?? {})
@@ -150,7 +155,9 @@ export function buildDiscoverPayloadFromRealtime(args: {
             body: comment.body,
             upvotes: 1
           }))
-          .sort((a, b) => a.id.localeCompare(b.id))
+          .sort((a, b) => a.id.localeCompare(b.id)),
+        likedBy: post.likedBy ?? {},
+        savedBy: post.savedBy ?? {}
       };
     })
     .sort((a, b) => b.likes + b.commentsCount * 2 - (a.likes + a.commentsCount * 2));

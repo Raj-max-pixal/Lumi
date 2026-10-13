@@ -1,4 +1,4 @@
-import { push, ref, remove, set } from "firebase/database";
+import { get, push, ref, remove, set, update } from "firebase/database";
 import { realtimeDb } from "@/lib/firebase";
 
 export type FirebaseProfile = {
@@ -13,15 +13,23 @@ export type FirebaseProfile = {
 };
 
 export async function ensureUserProfile(profile: FirebaseProfile) {
-  await set(ref(realtimeDb, `profiles/${profile.id}/public`), {
+  await update(ref(realtimeDb, `publicProfiles/${profile.id}`), {
     name: profile.name,
     avatar: profile.avatar,
     username: profile.username ?? `@${profile.id.slice(0, 8)}`,
     bio: profile.bio ?? "",
     city: profile.city ?? "",
-    followersCount: profile.followersCount ?? 0,
-    followingCount: profile.followingCount ?? 0
+    ...(profile.followersCount === undefined ? {} : { followersCount: profile.followersCount }),
+    ...(profile.followingCount === undefined ? {} : { followingCount: profile.followingCount })
   });
+}
+
+export async function createUserProfileIfMissing(profile: FirebaseProfile) {
+  const profileRef = ref(realtimeDb, `publicProfiles/${profile.id}`);
+  const existing = await get(profileRef);
+  if (!existing.exists()) {
+    await ensureUserProfile(profile);
+  }
 }
 
 export async function createNotification(userId: string, title: string, body: string) {
@@ -31,6 +39,18 @@ export async function createNotification(userId: string, title: string, body: st
     body,
     createdAt: Date.now()
   });
+}
+
+export async function togglePostLike(postId: string, userId: string, liked: boolean) {
+  const likeRef = ref(realtimeDb, `community/posts/${postId}/likedBy/${userId}`);
+  if (liked) await remove(likeRef);
+  else await set(likeRef, true);
+}
+
+export async function togglePostSave(postId: string, userId: string, saved: boolean) {
+  const saveRef = ref(realtimeDb, `community/posts/${postId}/savedBy/${userId}`);
+  if (saved) await remove(saveRef);
+  else await set(saveRef, true);
 }
 
 export async function toggleFollowUser(args: {
@@ -47,9 +67,7 @@ export async function toggleFollowUser(args: {
     currentUserName,
     targetUserId,
     targetUserName,
-    isFollowing,
-    currentFollowingCount,
-    targetFollowersCount
+    isFollowing
   } = args;
 
   const followingRef = ref(realtimeDb, `relationships/following/${currentUserId}/${targetUserId}`);
@@ -58,8 +76,6 @@ export async function toggleFollowUser(args: {
   if (isFollowing) {
     await remove(followingRef);
     await remove(followerRef);
-    await set(ref(realtimeDb, `profiles/${currentUserId}/public/followingCount`), Math.max(0, currentFollowingCount - 1));
-    await set(ref(realtimeDb, `profiles/${targetUserId}/public/followersCount`), Math.max(0, targetFollowersCount - 1));
     return;
   }
 
@@ -69,7 +85,5 @@ export async function toggleFollowUser(args: {
   await set(followerRef, {
     createdAt: Date.now()
   });
-  await set(ref(realtimeDb, `profiles/${currentUserId}/public/followingCount`), currentFollowingCount + 1);
-  await set(ref(realtimeDb, `profiles/${targetUserId}/public/followersCount`), targetFollowersCount + 1);
   await createNotification(targetUserId, "New follower", `${currentUserName} started following ${targetUserName}.`);
 }

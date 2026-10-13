@@ -3,16 +3,17 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import {
+  createUserWithEmailAndPassword,
   GoogleAuthProvider,
   onAuthStateChanged,
-  signInAnonymously,
+  signInWithEmailAndPassword,
   signInWithPopup,
   signOut,
   updateProfile
 } from "firebase/auth";
 import { Loader2, LogOut } from "lucide-react";
 import { auth } from "@/lib/firebase";
-import { ensureUserProfile } from "@/lib/social-firebase";
+import { createUserProfileIfMissing } from "@/lib/social-firebase";
 
 export type LumiViewer = {
   id: string;
@@ -53,6 +54,10 @@ export default function AuthPanel({
   const [viewer, setViewer] = useState<LumiViewer | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [status, setStatus] = useState("Sign in to post, follow, and chat.");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [creatingAccount, setCreatingAccount] = useState(false);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -78,12 +83,12 @@ export default function AuthPanel({
           username: user.email ? `@${user.email.split("@")[0].replace(/[^a-z0-9_]/gi, "").toLowerCase()}` : undefined
         };
 
-        void ensureUserProfile({
+        void createUserProfileIfMissing({
           id: nextViewer.id,
           name: nextViewer.name,
           avatar: nextViewer.avatar,
           username: nextViewer.username
-        });
+        }).catch(() => setStatus("Signed in, but the database is unavailable."));
 
         setViewer(nextViewer);
         onViewerChange(nextViewer);
@@ -118,21 +123,32 @@ export default function AuthPanel({
     }
   }
 
-  async function handleGuestSignIn() {
+  async function handleEmailSignIn() {
+    if (!email.trim() || password.length < 6 || (creatingAccount && !displayName.trim())) {
+      setStatus("Enter an email, a password of at least 6 characters, and a name for a new account.");
+      return;
+    }
     setIsLoading(true);
-    setStatus("Starting guest mode...");
+    setStatus(creatingAccount ? "Creating account..." : "Signing in...");
     try {
-      const credential = await signInAnonymously(auth);
-      if (!credential.user.displayName || !credential.user.photoURL) {
-        const guest = buildGuestProfile(credential.user.uid);
+      if (creatingAccount) {
+        const credential = await createUserWithEmailAndPassword(auth, email.trim(), password);
         await updateProfile(credential.user, {
-          displayName: guest.name,
-          photoURL: guest.avatar
+          displayName: displayName.trim(),
+          photoURL: buildGuestProfile(credential.user.uid).avatar
         });
+        await createUserProfileIfMissing({
+          id: credential.user.uid,
+          name: displayName.trim(),
+          avatar: buildGuestProfile(credential.user.uid).avatar,
+          username: `@${email.split("@")[0].replace(/[^a-z0-9_]/gi, "").toLowerCase()}`
+        });
+      } else {
+        await signInWithEmailAndPassword(auth, email.trim(), password);
       }
-      setStatus("Guest mode active.");
+      setStatus("Signed in and ready.");
     } catch {
-      setStatus("Guest mode failed. Check Firebase keys and auth setup.");
+      setStatus("Could not sign in. Check your details and Firebase Email/Password setup.");
       setIsLoading(false);
     }
   }
@@ -175,24 +191,22 @@ export default function AuthPanel({
             <p className={`font-semibold ${isFocusMode ? "text-slate-900" : "text-white"}`}>Welcome to Lumi</p>
             <p className={isFocusMode ? "mt-1 text-sm text-slate-500" : "mt-1 text-sm text-white/60"}>{status}</p>
           </div>
+          <div className="space-y-2">
+            {creatingAccount ? <input value={displayName} onChange={(event) => setDisplayName(event.target.value)} placeholder="Your name" aria-label="Your name" className={`w-full rounded-xl border px-3 py-2 text-sm ${isFocusMode ? "border-slate-200 bg-white" : "border-white/10 bg-black/20"}`} /> : null}
+            <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Email" aria-label="Email" className={`w-full rounded-xl border px-3 py-2 text-sm ${isFocusMode ? "border-slate-200 bg-white" : "border-white/10 bg-black/20"}`} />
+            <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Password" aria-label="Password" className={`w-full rounded-xl border px-3 py-2 text-sm ${isFocusMode ? "border-slate-200 bg-white" : "border-white/10 bg-black/20"}`} />
+          </div>
           <div className="flex flex-wrap gap-3">
+            <button type="button" onClick={() => void handleEmailSignIn()} className="rounded-full bg-lumi-purple px-4 py-2 text-sm font-medium text-white">{creatingAccount ? "Create account" : "Sign in"}</button>
             <button
               type="button"
               onClick={() => void handleGoogleSignIn()}
-              className="rounded-full bg-lumi-purple px-4 py-2 text-sm font-medium text-white"
+              className={`rounded-full px-4 py-2 text-sm ${isFocusMode ? "bg-slate-100 text-slate-700" : "bg-white/10 text-white/80"}`}
             >
               Continue with Google
             </button>
-            <button
-              type="button"
-              onClick={() => void handleGuestSignIn()}
-              className={`rounded-full px-4 py-2 text-sm ${
-                isFocusMode ? "bg-slate-100 text-slate-700" : "bg-white/10 text-white/80"
-              }`}
-            >
-              Try guest mode
-            </button>
           </div>
+          <button type="button" onClick={() => setCreatingAccount((current) => !current)} className="text-sm text-lumi-purple">{creatingAccount ? "Already have an account? Sign in" : "New to Lumi? Create an account"}</button>
         </div>
       )}
     </section>
