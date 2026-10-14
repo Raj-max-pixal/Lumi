@@ -8,6 +8,13 @@ export type FirebaseProfile = {
   username?: string;
   bio?: string;
   city?: string;
+  showLocation?: boolean;
+  skills?: string[];
+  interests?: string[];
+  portfolioUrl?: string;
+  githubUrl?: string;
+  linkedinUrl?: string;
+  featuredProjectIds?: string[];
   followersCount?: number;
   followingCount?: number;
 };
@@ -19,6 +26,12 @@ export async function ensureUserProfile(profile: FirebaseProfile) {
     username: profile.username ?? `@${profile.id.slice(0, 8)}`,
     bio: profile.bio ?? "",
     city: profile.city ?? "",
+    ...(profile.showLocation === undefined ? {} : { showLocation: profile.showLocation }),
+    ...(profile.skills === undefined ? {} : { skills: profile.skills }),
+    ...(profile.interests === undefined ? {} : { interests: profile.interests }),
+    ...(profile.portfolioUrl === undefined ? {} : { portfolioUrl: profile.portfolioUrl }),
+    ...(profile.githubUrl === undefined ? {} : { githubUrl: profile.githubUrl }),
+    ...(profile.linkedinUrl === undefined ? {} : { linkedinUrl: profile.linkedinUrl }),
     ...(profile.followersCount === undefined ? {} : { followersCount: profile.followersCount }),
     ...(profile.followingCount === undefined ? {} : { followingCount: profile.followingCount })
   });
@@ -70,20 +83,20 @@ export async function toggleFollowUser(args: {
     isFollowing
   } = args;
 
-  const followingRef = ref(realtimeDb, `relationships/following/${currentUserId}/${targetUserId}`);
-  const followerRef = ref(realtimeDb, `relationships/followers/${targetUserId}/${currentUserId}`);
-
   if (isFollowing) {
-    await remove(followingRef);
-    await remove(followerRef);
+    await update(ref(realtimeDb), {
+      [`relationships/following/${currentUserId}/${targetUserId}`]: null,
+      [`relationships/followers/${targetUserId}/${currentUserId}`]: null
+    });
     return;
   }
 
-  await set(followingRef, {
-    createdAt: Date.now()
+  if (currentUserId === targetUserId) return;
+  const createdAt = Date.now();
+  await update(ref(realtimeDb), {
+    [`relationships/following/${currentUserId}/${targetUserId}`]: { createdAt },
+    [`relationships/followers/${targetUserId}/${currentUserId}`]: { createdAt }
   });
-  await set(followerRef, {
-    createdAt: Date.now()
-  });
-  await createNotification(targetUserId, "New follower", `${currentUserName} started following ${targetUserName}.`);
+  try { await createNotification(targetUserId, "New follower", `${currentUserName} started following ${targetUserName}.`); }
+  catch { /* The follow succeeded even if notification delivery failed. */ }
 }

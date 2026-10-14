@@ -2,15 +2,15 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Code2, Grid3X3, PlaySquare } from "lucide-react";
+import { Code2, ExternalLink, Github, Grid3X3, Link2, MapPin, PlaySquare, Pin, Share2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { equalTo, onValue, orderByChild, query, ref } from "firebase/database";
+import { equalTo, onValue, orderByChild, query, ref, update } from "firebase/database";
 import { realtimeDb } from "@/lib/firebase";
 import { LumiViewer } from "@/components/AuthPanel";
 import EditProfilePanel from "@/components/EditProfilePanel";
 import LumiCard from "@/components/LumiCard";
 import { FirebaseProfile, toggleFollowUser } from "@/lib/social-firebase";
-import { HackathonProject } from "@/lib/hackathon";
+import { HackathonProject, isSafeUrl } from "@/lib/hackathon";
 
 type ProfileScreenProps = {
   viewer: LumiViewer | null;
@@ -48,6 +48,8 @@ export default function ProfileScreen({
   const [following, setFollowing] = useState<string[]>([]);
   const [viewerFollowing, setViewerFollowing] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<"posts" | "reels" | "projects">("posts");
+  const [profileStatus, setProfileStatus] = useState("");
+  const [followBusy, setFollowBusy] = useState(false);
 
   useEffect(() => {
     if (!targetUserId) {
@@ -146,11 +148,12 @@ export default function ProfileScreen({
   }, [activeTab, posts]);
 
   async function handleFollowToggle() {
-    if (!viewer || !targetUserId || targetUserId === viewer.id) {
+    if (!viewer || !targetUserId || targetUserId === viewer.id || followBusy) {
       return;
     }
-
-    await toggleFollowUser({
+    setFollowBusy(true);
+    setProfileStatus("");
+    try { await toggleFollowUser({
       currentUserId: viewer.id,
       currentUserName: viewer.name,
       targetUserId,
@@ -158,12 +161,24 @@ export default function ProfileScreen({
       isFollowing,
       currentFollowingCount: viewerFollowing.length,
       targetFollowersCount: followers.length
-    });
+    }); } catch { setProfileStatus("Could not update following. Please try again."); }
+    finally { setFollowBusy(false); }
   }
+
+  async function toggleFeatured(projectId: string) {
+    if (!isOwnProfile || !viewer) return;
+    const current = safeProfile.featuredProjectIds ?? [];
+    const next = current.includes(projectId) ? current.filter((id) => id !== projectId) : [...current, projectId];
+    if (next.length > 3) { setProfileStatus("You can feature up to three projects."); return; }
+    try { await update(ref(realtimeDb, `publicProfiles/${viewer.id}`), { featuredProjectIds: next.length ? next : null }); setProfileStatus("Featured projects updated."); }
+    catch { setProfileStatus("Could not update featured projects."); }
+  }
+
+  const featuredProjects = projects.filter((project) => safeProfile.featuredProjectIds?.includes(project.id)).slice(0, 3);
 
   return (
     <div className="space-y-6">
-      <section className={`rounded-[24px] border p-6 ${isFocusMode ? "border-slate-200 bg-white" : "border-white/10 bg-zinc-950"}`}>
+      <section className={`relative overflow-hidden rounded-[24px] border p-6 sm:p-8 ${isFocusMode ? "border-slate-200 bg-white" : "border-fuchsia-400/20 bg-gradient-to-br from-[#42243f] via-[#241b38] to-[#18122d]"}`}>
         <div className="grid gap-8 lg:grid-cols-[180px_minmax(0,1fr)]">
           <div className="relative mx-auto h-36 w-36 overflow-hidden rounded-full border border-slate-200">
             <Image src={safeProfile.avatar} alt={safeProfile.name} fill className="object-cover" />
@@ -174,7 +189,7 @@ export default function ProfileScreen({
               <div className="flex flex-wrap items-center gap-4">
                 <div><p className={`text-2xl font-semibold ${isFocusMode ? "text-slate-900" : "text-white"}`}>{safeProfile.name}</p><p className="text-sm opacity-60">{safeProfile.username ?? `@${safeProfile.id.slice(0, 8)}`}</p></div>
                 {!isOwnProfile && viewer ? (
-                  <button
+                  <button disabled={followBusy}
                     type="button"
                     onClick={() => void handleFollowToggle()}
                     className={`rounded-lg px-4 py-2 text-sm font-medium ${
@@ -185,8 +200,12 @@ export default function ProfileScreen({
                   </button>
                 ) : null}
               </div>
-              <p className={`mt-4 whitespace-pre-line text-sm ${isFocusMode ? "text-slate-700" : "text-white/80"}`}>{safeProfile.bio || "No bio yet."}</p>
-              <p className={isFocusMode ? "mt-1 text-sm text-slate-500" : "mt-1 text-sm text-white/60"}>{safeProfile.city || "Location hidden"}</p>
+              <p className={`mt-4 max-w-2xl whitespace-pre-line text-sm leading-6 ${isFocusMode ? "text-slate-700" : "text-white/80"}`}>{safeProfile.bio || "No bio yet."}</p>
+              {safeProfile.showLocation && safeProfile.city && <p className={`mt-2 inline-flex items-center gap-1 text-sm ${isFocusMode ? "text-slate-500" : "text-white/60"}`}><MapPin className="h-3.5 w-3.5" /> {safeProfile.city}</p>}
+              <div className="mt-4 flex flex-wrap gap-2">{safeProfile.skills?.map((skill) => <span key={skill} className="rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-xs">{skill}</span>)}</div>
+              {safeProfile.interests?.length ? <p className={`mt-3 text-xs ${isFocusMode ? "text-slate-500" : "text-white/55"}`}>Interested in {safeProfile.interests.join(" · ")}</p> : null}
+              <div className="mt-5 flex flex-wrap gap-2 text-sm">{safeProfile.portfolioUrl && isSafeUrl(safeProfile.portfolioUrl) && <a href={safeProfile.portfolioUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded-full bg-fuchsia-300 px-3 py-1.5 font-semibold text-slate-950"><Link2 className="h-3.5 w-3.5" /> Portfolio</a>}{safeProfile.githubUrl && isSafeUrl(safeProfile.githubUrl, true) && <a href={safeProfile.githubUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded-full border border-white/20 px-3 py-1.5"><Github className="h-3.5 w-3.5" /> GitHub</a>}{safeProfile.linkedinUrl && isSafeUrl(safeProfile.linkedinUrl) && <a href={safeProfile.linkedinUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded-full border border-white/20 px-3 py-1.5"><ExternalLink className="h-3.5 w-3.5" /> LinkedIn</a>}<button onClick={() => { void navigator.clipboard.writeText(window.location.href).then(() => setProfileStatus("Profile link copied.")).catch(() => setProfileStatus("Could not copy the profile link.")); }} className="inline-flex items-center gap-1 rounded-full border border-white/20 px-3 py-1.5"><Share2 className="h-3.5 w-3.5" /> Share</button></div>
+              {profileStatus && <p role="status" className="mt-3 text-sm text-fuchsia-200">{profileStatus}</p>}
             </div>
 
             <div className="grid gap-4 sm:grid-cols-5">
@@ -237,6 +256,8 @@ export default function ProfileScreen({
 
       {isOwnProfile ? <EditProfilePanel viewer={viewer} isFocusMode={isFocusMode} /> : null}
 
+      {featuredProjects.length > 0 && <section><h2 className="mb-3 text-lg font-bold">Featured projects</h2><div className="grid gap-4 md:grid-cols-3">{featuredProjects.map((project) => <Link key={project.id} href={`/hackathon/project/${project.id}`} className={`overflow-hidden rounded-2xl border ${isFocusMode ? "border-slate-200 bg-white" : "border-fuchsia-300/20 bg-[#211533]"}`}><div className="h-36 bg-gradient-to-br from-[#64446c] to-[#141d39]">{project.imageUrls?.[0] && <img src={project.imageUrls[0]} alt="" className="h-full w-full object-cover" />}</div><div className="p-4"><h3 className="font-bold">{project.title}</h3><p className="mt-1 line-clamp-2 text-sm opacity-65">{project.tagline || project.description}</p></div></Link>)}</div></section>}
+
       <section className="space-y-5">
         <div className={`flex items-center justify-center gap-2 border-y py-3 ${isFocusMode ? "border-slate-200" : "border-white/10"}`}>
           {[
@@ -266,10 +287,12 @@ export default function ProfileScreen({
 
         {activeTab === "projects" ? projects.length ? (
           <div className="grid gap-4 md:grid-cols-2">
-            {projects.map((project) => <Link key={project.id} href={`/hackathon/project/${project.id}`} className={`overflow-hidden rounded-[22px] border transition hover:border-sky-400 ${isFocusMode ? "border-slate-200 bg-white" : "border-white/10 bg-zinc-950"}`}>
+            {projects.map((project) => <div key={project.id} className={`overflow-hidden rounded-[22px] border transition hover:border-sky-400 ${isFocusMode ? "border-slate-200 bg-white" : "border-fuchsia-300/15 bg-[#211533]"}`}>
+              <Link href={`/hackathon/project/${project.id}`}>
               <div className="flex h-36 items-center justify-center bg-gradient-to-br from-[#1a3653] to-[#49346b]">{project.imageUrls?.[0] ? <img src={project.imageUrls[0]} alt={`${project.title} thumbnail`} className="h-full w-full object-cover" /> : <Code2 className="h-9 w-9 text-sky-300" />}</div>
-              <div className="p-4"><p className="text-xs font-semibold text-sky-500">{project.category || "Student project"}</p><h3 className="mt-1 font-bold">{project.title}</h3><p className={`mt-1 line-clamp-2 text-sm ${isFocusMode ? "text-slate-500" : "text-white/60"}`}>{project.tagline || project.description}</p></div>
-            </Link>)}
+              <div className="p-4"><p className="text-xs font-semibold text-sky-500">{project.category || "Student project"}</p><h3 className="mt-1 font-bold">{project.title}</h3><p className={`mt-1 line-clamp-2 text-sm ${isFocusMode ? "text-slate-500" : "text-white/60"}`}>{project.tagline || project.description}</p><div className="mt-3 flex flex-wrap gap-1">{project.technologies?.slice(0, 4).map((tech) => <span key={tech} className="rounded-full bg-white/10 px-2 py-0.5 text-xs">{tech}</span>)}</div></div></Link>
+              {isOwnProfile && <button type="button" onClick={() => void toggleFeatured(project.id)} className="mb-4 ml-4 inline-flex items-center gap-1 text-xs font-semibold text-fuchsia-300"><Pin className="h-3.5 w-3.5" /> {safeProfile.featuredProjectIds?.includes(project.id) ? "Remove from featured" : "Feature project"}</button>}
+            </div>)}
           </div>
         ) : <div className={`rounded-[24px] border p-8 text-center ${isFocusMode ? "border-slate-200 bg-white" : "border-white/10 bg-zinc-950"}`}><p className="text-lg font-semibold">No projects published yet</p>{isOwnProfile && <Link href="/hackathon" className="mt-2 inline-block text-sm text-sky-500">Publish your first project →</Link>}</div> : tabbedPosts.length ? (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
