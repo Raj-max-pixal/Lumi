@@ -126,7 +126,7 @@ export default function HomePage() {
     };
   }, [retryKey]);
 
-  if (isLoading) {
+  if (isLoading && pathname !== "/clips") {
     return (
       <div className={`flex min-h-[70vh] items-center justify-center rounded-[24px] border ${isFocusMode ? "border-slate-200 bg-white" : "border-white/10 bg-zinc-950"}`}>
         <div className="text-center">
