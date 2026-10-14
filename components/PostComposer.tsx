@@ -7,6 +7,7 @@ import { ImagePlus, Loader2, Send } from "lucide-react";
 import { realtimeDb, storage } from "@/lib/firebase";
 import { LumiViewer } from "@/components/AuthPanel";
 import { createNotification } from "@/lib/social-firebase";
+import { DEVELOPER_TOPICS } from "@/lib/developer-topics";
 
 export default function PostComposer({
   viewer,
@@ -16,6 +17,7 @@ export default function PostComposer({
   isFocusMode?: boolean;
 }) {
   const [caption, setCaption] = useState("");
+  const [topic, setTopic] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [isPosting, setIsPosting] = useState(false);
   const [status, setStatus] = useState("");
@@ -36,6 +38,8 @@ export default function PostComposer({
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const formElement = event.currentTarget;
+    if (isPosting) return;
 
     if (!viewer) {
       setStatus("Sign in first to post.");
@@ -46,6 +50,8 @@ export default function PostComposer({
       setStatus("Add a photo, video, or caption before sharing.");
       return;
     }
+    if (!topic) { setStatus("Choose the developer topic this post teaches or explores."); return; }
+    if (file?.type.startsWith("video/") && !caption.trim()) { setStatus("Add a caption explaining what students will learn from this reel."); return; }
 
     setIsPosting(true);
     setStatus("");
@@ -75,16 +81,19 @@ export default function PostComposer({
         commentsCount: 0,
         shares: 0,
         savedCount: 0,
-        tags: isVideo ? ["Reel"] : mediaUrl ? ["Photo"] : ["Post"],
+        tags: [topic],
         likedBy: {},
         savedBy: {},
         comments: {}
       });
 
-      await createNotification(viewer.id, "Post published", "Your post is now live on Lumi.");
+      try { await createNotification(viewer.id, "Post published", "Your post is now live on Lumi."); }
+      catch { /* A notification failure does not undo a published post. */ }
 
       setCaption("");
+      setTopic("");
       setFile(null);
+      formElement.reset();
       setStatus("Shared.");
     } catch {
       setStatus("Unable to share right now. Check Firebase Database and Storage rules.");
@@ -99,11 +108,18 @@ export default function PostComposer({
         <textarea
           value={caption}
           onChange={(event) => setCaption(event.target.value)}
-          placeholder="Write a caption..."
+          placeholder="Share what you built, learned, or want to teach other developers..."
           className={`min-h-28 w-full rounded-[18px] border p-4 text-sm outline-none ${
             isFocusMode ? "border-slate-200 bg-slate-50 text-slate-900" : "border-white/10 bg-black/25 text-white"
           }`}
         />
+
+        <label className="block text-sm font-medium">Developer topic
+          <select required value={topic} onChange={(event) => setTopic(event.target.value)} className={`mt-2 w-full rounded-[18px] border px-4 py-3 outline-none focus:border-lumi-purple ${isFocusMode ? "border-slate-200 bg-slate-50 text-slate-900" : "border-white/10 bg-black/25 text-white"}`}>
+            <option value="">Choose a topic</option>
+            {DEVELOPER_TOPICS.map((item) => <option key={item} value={item}>{item}</option>)}
+          </select>
+        </label>
 
         <div className="flex flex-wrap gap-4">
           <label
@@ -118,7 +134,7 @@ export default function PostComposer({
         </div>
 
         <div className="flex items-center justify-between gap-4">
-          <p role="status" className={isFocusMode ? "text-sm text-slate-500" : "text-sm text-white/55"}>{status || "Share a photo, video reel, or caption."}</p>
+          <p role="status" className={isFocusMode ? "text-sm text-slate-500" : "text-sm text-white/55"}>{status || "Share a project update, tutorial, or developer reel."}</p>
           <button
             type="submit"
             disabled={isPosting}

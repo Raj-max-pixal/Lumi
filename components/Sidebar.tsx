@@ -59,7 +59,7 @@ export default function Sidebar({ isFocusMode = false }: { isFocusMode?: boolean
       <div className={`rounded-[24px] border p-4 ${isFocusMode ? "border-slate-200 bg-slate-50" : "border-white/10 bg-white/5"}`}>
         <p className="text-sm font-semibold">Lumi</p>
         <p className={isFocusMode ? "mt-2 text-sm text-slate-600" : "mt-2 text-sm text-white/70"}>
-          Instagram-inspired social app with reels, stories, posts, chat, and profiles.
+          A place for student developers to learn, share projects, and build together.
         </p>
       </div>
     </aside>

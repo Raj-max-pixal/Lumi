@@ -29,7 +29,7 @@ export default function LumiShell({ children }: { children: ReactNode }) {
             <div>
               <p className="font-display text-4xl font-semibold tracking-tight">Lumi</p>
               <p className={isFocusMode ? "mt-1 text-sm text-slate-500" : "mt-1 text-sm text-white/55"}>
-                Photo sharing, reels, stories, messages, and profiles.
+                Build projects. Learn from developers. Find your team.
               </p>
             </div>
             <button

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import { onValue, ref } from "firebase/database";
+import { limitToLast, onValue, orderByChild, query, ref } from "firebase/database";
 import { onAuthStateChanged } from "firebase/auth";
 import { Loader2 } from "lucide-react";
 import AuthPanel, { LumiViewer } from "@/components/AuthPanel";
@@ -29,7 +29,9 @@ export default function HomePage() {
   const { isFocusMode } = useLumiMode();
   const pathname = usePathname();
   const [discover, setDiscover] = useState<DiscoverPayload | null>(null);
+  const [profilesById, setProfilesById] = useState<Record<string, RealtimeProfileRecord>>({});
   const [viewer, setViewer] = useState<LumiViewer | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const fallbackPayload = buildDiscoverPayloadFromRealtime({
@@ -50,23 +52,25 @@ export default function HomePage() {
     setIsLoading(true);
     setError("");
     setDiscover(fallbackPayload);
+    setProfilesById({});
 
     let profiles: Record<string, RealtimeProfileRecord> = {};
     let posts: Record<string, RealtimePostRecord> = {};
-    let hasResolvedOnce = false;
+    let profilesResolved = false;
+    let postsResolved = false;
+    let profilesFailed = false;
+    let postsFailed = false;
 
     function syncPayload() {
+      if (!profilesResolved || !postsResolved) return;
       try {
         const payload = buildDiscoverPayloadFromRealtime({
           profiles,
           posts
         });
-        hasResolvedOnce = true;
         setDiscover(payload);
-        setError("");
-        console.log("Feed loaded");
+        setError([profilesFailed && "Profiles could not load.", postsFailed && "Posts could not load."].filter(Boolean).join(" "));
       } catch (loadError) {
-        hasResolvedOnce = true;
         setDiscover(fallbackPayload);
         setError(loadError instanceof Error ? loadError.message : "Something went wrong.");
       } finally {
@@ -75,28 +79,28 @@ export default function HomePage() {
     }
 
     const timeout = window.setTimeout(() => {
-      if (!hasResolvedOnce) {
-        setDiscover(fallbackPayload);
-        setIsLoading(false);
-        setError("Firebase is taking too long to respond. Preview mode is showing an empty Lumi state.");
-      }
+      if (!profilesResolved) { profilesResolved = true; profilesFailed = true; }
+      if (!postsResolved) { postsResolved = true; postsFailed = true; }
+      syncPayload();
     }, 10000);
 
     const profilesRef = ref(realtimeDb, "publicProfiles");
-    const postsRef = ref(realtimeDb, "community/posts");
+    const postsRef = query(ref(realtimeDb, "community/posts"), orderByChild("createdAt"), limitToLast(100));
 
     const unsubProfiles = onValue(
       profilesRef,
       (snapshot: { val: () => unknown }) => {
         profiles = (snapshot.val() as Record<string, RealtimeProfileRecord> | null) ?? {};
+        setProfilesById(profiles);
+        profilesResolved = true;
+        profilesFailed = false;
         syncPayload();
       },
       () => {
-        if (!hasResolvedOnce) {
-          setDiscover(fallbackPayload);
-          setIsLoading(false);
-          setError("Could not load profiles from Firebase. Preview mode is active.");
-        }
+        profilesResolved = true;
+        profilesFailed = true;
+        setProfilesById({});
+        syncPayload();
       }
     );
 
@@ -104,14 +108,14 @@ export default function HomePage() {
       postsRef,
       (snapshot: { val: () => unknown }) => {
         posts = (snapshot.val() as Record<string, RealtimePostRecord> | null) ?? {};
+        postsResolved = true;
+        postsFailed = false;
         syncPayload();
       },
       () => {
-        if (!hasResolvedOnce) {
-          setDiscover(fallbackPayload);
-          setIsLoading(false);
-          setError("Could not load posts from Firebase. Preview mode is active.");
-        }
+        postsResolved = true;
+        postsFailed = true;
+        syncPayload();
       }
     );
 
@@ -120,7 +124,7 @@ export default function HomePage() {
       unsubProfiles();
       unsubPosts();
     };
-  }, []);
+  }, [retryKey]);
 
   if (isLoading) {
     return (
@@ -161,7 +165,7 @@ export default function HomePage() {
       case "clips":
         return (
           <div className="mx-auto max-w-xl">
-            <ReelsFeed feed={data.feed} viewer={viewer} isFocusMode={isFocusMode} />
+            <ReelsFeed feed={data.feed} viewer={viewer} interests={viewer ? profilesById[viewer.id]?.interests ?? [] : []} isFocusMode={isFocusMode} />
           </div>
         );
       case "following":
@@ -243,7 +247,8 @@ export default function HomePage() {
     <div className="space-y-6">
       {error ? (
         <div className={`rounded-[24px] border px-4 py-3 ${isFocusMode ? "border-slate-200 bg-white" : "border-white/10 bg-zinc-950"}`}>
-          <p className={isFocusMode ? "text-sm text-slate-600" : "text-sm text-white/70"}>{error}</p>
+          <p className={isFocusMode ? "text-sm text-slate-600" : "text-sm text-white/70"}>{error} Check the Lumi database connection, then retry.</p>
+          <button type="button" onClick={() => setRetryKey((key) => key + 1)} className="mt-2 rounded-full bg-lumi-purple px-4 py-1.5 text-sm font-semibold text-white">Retry loading</button>
         </div>
       ) : null}
       {renderActiveView()}

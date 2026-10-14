@@ -4,7 +4,7 @@ import LumiShell from "@/components/LumiShell";
 
 export const metadata: Metadata = {
   title: "Lumi",
-  description: "A social entertainment app blending creators, chat, stories, threads, and AI.",
+  description: "A student developer community for projects, learning reels, hackathons, and teams.",
   manifest: "/manifest.webmanifest"
 };
 

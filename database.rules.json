@@ -22,6 +22,7 @@
     "community": {
       "posts": {
         ".read": true,
+        ".indexOn": ["createdAt", "authorId"],
         "$postId": {
           ".write": "auth !== null && !data.exists() && newData.child('authorId').val() === auth.uid",
           ".validate": "newData.hasChildren(['authorId', 'authorName', 'caption', 'createdAt'])",

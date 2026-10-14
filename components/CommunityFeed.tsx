@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useMemo, useState } from "react";
-import { onValue, push, ref, remove, set } from "firebase/database";
+import { limitToLast, onValue, orderByChild, push, query as dbQuery, ref, remove, set } from "firebase/database";
 import { Bookmark, Filter, Heart, Loader2, MessageCircle, Search, Trash2, X } from "lucide-react";
 import { realtimeDb } from "@/lib/firebase";
 import LumiCard from "@/components/LumiCard";
@@ -50,17 +50,20 @@ export default function CommunityFeed({
   const [query, setQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [loadMessage, setLoadMessage] = useState("");
+  const [retryKey, setRetryKey] = useState(0);
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
 
   useEffect(() => {
-    const postsRef = ref(realtimeDb, "community/posts");
+    setIsLoading(true);
+    setLoadMessage("");
+    const postsRef = dbQuery(ref(realtimeDb, "community/posts"), orderByChild("createdAt"), limitToLast(100));
     let resolved = false;
     const timeout = window.setTimeout(() => {
       if (!resolved) {
         setPosts([]);
         setIsLoading(false);
-        setLoadMessage("Feed preview mode is active while Firebase loads.");
+        setLoadMessage("The community feed is taking too long to load.");
       }
     }, 10000);
 
@@ -102,7 +105,7 @@ export default function CommunityFeed({
       window.clearTimeout(timeout);
       unsubscribe();
     };
-  }, []);
+  }, [retryKey]);
 
   useEffect(() => {
     if (!viewer) {
@@ -403,10 +406,11 @@ export default function CommunityFeed({
             isFocusMode ? "border-slate-200 bg-white shadow-xl shadow-slate-200/60" : "border-white/10 bg-white/5 backdrop-blur-xl"
           }`}
         >
-          <p className={`font-display text-xl font-semibold ${isFocusMode ? "text-slate-900" : "text-white"}`}>No community posts yet</p>
+          <p className={`font-display text-xl font-semibold ${isFocusMode ? "text-slate-900" : "text-white"}`}>{loadMessage ? "Community feed unavailable" : "No community posts yet"}</p>
           <p className={isFocusMode ? "mt-3 text-sm text-slate-500" : "mt-3 text-sm text-white/60"}>
             {loadMessage || "Publish the first post from the composer to populate the shared feed."}
           </p>
+          {loadMessage && <button type="button" onClick={() => setRetryKey((key) => key + 1)} className="mt-3 rounded-full bg-lumi-purple px-4 py-2 text-sm font-semibold text-white">Retry loading</button>}
         </div>
       )}
 

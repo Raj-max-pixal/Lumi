@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Code2, ExternalLink, Github, Grid3X3, Link2, MapPin, PlaySquare, Pin, Share2 } from "lucide-react";
+import { Code2, ExternalLink, Github, Grid3X3, Link2, Loader2, MapPin, PlaySquare, Pin, Share2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { equalTo, onValue, orderByChild, query, ref, update } from "firebase/database";
 import { realtimeDb } from "@/lib/firebase";
@@ -42,6 +42,8 @@ export default function ProfileScreen({
 }: ProfileScreenProps) {
   const targetUserId = profileUserId || viewer?.id || null;
   const [profile, setProfile] = useState<FirebaseProfile | null>(null);
+  const [profileState, setProfileState] = useState<"loading" | "ready" | "missing" | "error">("loading");
+  const [retryKey, setRetryKey] = useState(0);
   const [posts, setPosts] = useState<ProfilePost[]>([]);
   const [projects, setProjects] = useState<HackathonProject[]>([]);
   const [followers, setFollowers] = useState<string[]>([]);
@@ -53,11 +55,14 @@ export default function ProfileScreen({
 
   useEffect(() => {
     if (!targetUserId) {
+      setProfileState("missing");
       return;
     }
+    setProfileState("loading");
+    const timeout = window.setTimeout(() => setProfileState("error"), 10000);
 
     const profileRef = ref(realtimeDb, `publicProfiles/${targetUserId}`);
-    const postsRef = ref(realtimeDb, "community/posts");
+    const postsRef = query(ref(realtimeDb, "community/posts"), orderByChild("authorId"), equalTo(targetUserId));
     const projectsRef = query(ref(realtimeDb, "hackathon/projects"), orderByChild("authorId"), equalTo(targetUserId));
     const followersRef = ref(realtimeDb, `relationships/followers/${targetUserId}`);
     const followingRef = ref(realtimeDb, `relationships/following/${targetUserId}`);
@@ -65,7 +70,9 @@ export default function ProfileScreen({
     const unsubProfile = onValue(profileRef, (snapshot: { val: () => unknown }) => {
       const value = snapshot.val() as Omit<FirebaseProfile, "id"> | null;
       setProfile(value ? { id: targetUserId, ...value } : null);
-    });
+      window.clearTimeout(timeout);
+      setProfileState(value ? "ready" : "missing");
+    }, () => { window.clearTimeout(timeout); setProfileState("error"); });
 
     const unsubPosts = onValue(postsRef, (snapshot: { val: () => unknown }) => {
       const value = snapshot.val() as Record<string, Omit<ProfilePost, "id">> | null;
@@ -98,13 +105,14 @@ export default function ProfileScreen({
     });
 
     return () => {
+      window.clearTimeout(timeout);
       unsubProfile();
       unsubPosts();
       unsubProjects();
       unsubFollowers();
       unsubFollowing();
     };
-  }, [targetUserId]);
+  }, [targetUserId, retryKey]);
 
   useEffect(() => {
     if (!viewer) {
@@ -128,15 +136,15 @@ export default function ProfileScreen({
     () =>
       profile ?? {
         id: targetUserId ?? "unknown",
-        name: "Lumi User",
-        username: `@${(targetUserId ?? "unknown").slice(0, 8)}`,
-        avatar: "https://api.dicebear.com/9.x/notionists/svg?seed=LumiProfile",
+        name: viewer?.name ?? "Developer",
+        username: viewer?.username ?? `@${(targetUserId ?? "unknown").slice(0, 8)}`,
+        avatar: viewer?.avatar ?? "https://api.dicebear.com/9.x/notionists/svg?seed=LumiProfile",
         bio: "",
         city: "",
         followersCount: followers.length,
         followingCount: following.length
       },
-    [profile, targetUserId, followers.length, following.length]
+    [profile, targetUserId, viewer?.name, viewer?.username, viewer?.avatar, followers.length, following.length]
   );
 
   const tabbedPosts = useMemo(() => {
@@ -175,6 +183,11 @@ export default function ProfileScreen({
   }
 
   const featuredProjects = projects.filter((project) => safeProfile.featuredProjectIds?.includes(project.id)).slice(0, 3);
+
+  if (!targetUserId) return <section className="rounded-2xl border border-current/10 p-8 text-center">Sign in to create your developer profile.</section>;
+  if (profileState === "loading") return <section className="rounded-2xl border border-current/10 p-8 text-center"><Loader2 className="mx-auto animate-spin" /><p className="mt-3 text-sm">Loading developer profile…</p></section>;
+  if (profileState === "error") return <section role="alert" className="rounded-2xl border border-rose-400/30 p-8 text-center"><p>Could not load this profile from Lumi’s database.</p><button type="button" onClick={() => setRetryKey((key) => key + 1)} className="mt-3 rounded-full bg-lumi-purple px-4 py-2 text-sm font-bold text-white">Retry loading</button></section>;
+  if (profileState === "missing" && !isOwnProfile) return <section className="rounded-2xl border border-current/10 p-8 text-center">This developer profile is unavailable.</section>;
 
   return (
     <div className="space-y-6">

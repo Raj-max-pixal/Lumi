@@ -4,7 +4,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { limitToLast, onValue, orderByChild, push, query, ref, set } from "firebase/database";
 import { getDownloadURL, ref as storageRef, uploadBytes } from "firebase/storage";
-import { ArrowRight, ArrowUpRight, BookOpen, Code2, ExternalLink, Filter, Github, ImagePlus, Loader2, Plus, Search, Send, Sparkles, Trophy, Users, X } from "lucide-react";
+import { ArrowRight, ArrowUpRight, BookOpen, Bookmark, Code2, Filter, ImagePlus, Loader2, MessageCircle, Plus, Search, Send, Sparkles, Users, X } from "lucide-react";
 import AuthPanel, { LumiViewer } from "@/components/AuthPanel";
 import { useLumiMode } from "@/components/LumiModeContext";
 import { realtimeDb, storage } from "@/lib/firebase";
@@ -30,11 +30,15 @@ export default function HackathonShowcase() {
   const [sort, setSort] = useState<"newest" | "liked" | "discussed">("newest");
   const [form, setForm] = useState(emptyForm);
   const [screenshots, setScreenshots] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const [visibleCount, setVisibleCount] = useState(12);
   const [serverForm, setServerForm] = useState({ name: "", domain: "", details: "" });
   const [selectedServer, setSelectedServer] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [retryKey, setRetryKey] = useState(0);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const dark = !isFocusMode;
@@ -45,15 +49,25 @@ export default function HackathonShowcase() {
   const technologies = useMemo(() => [...new Set(projects.flatMap((project) => project.technologies ?? []))].sort().slice(0, 50), [projects]);
 
   useEffect(() => {
+    const urls = screenshots.map((file) => URL.createObjectURL(file));
+    setImagePreviews(urls);
+    return () => urls.forEach((url) => URL.revokeObjectURL(url));
+  }, [screenshots]);
+  useEffect(() => setVisibleCount(12), [search, category, technology, sort, myProjects]);
+
+  useEffect(() => {
+    setLoading(true);
+    setLoadError("");
+    const timeout = window.setTimeout(() => { setLoading(false); setLoadError("Projects are taking too long to load. Check the Lumi database connection."); }, 10000);
     const unsubscribeProjects = onValue(query(ref(realtimeDb, "hackathon/projects"), orderByChild("createdAt"), limitToLast(60)), (snapshot: { val: () => Record<string, Omit<HackathonProject, "id">> | null }) => {
       setProjects(Object.entries(snapshot.val() ?? {}).map(([id, value]) => ({ id, ...value })));
-      setLoading(false); setError("");
-    }, () => { setLoading(false); setError("Projects cannot load until the Lumi database is available."); });
+      window.clearTimeout(timeout); setLoading(false); setLoadError("");
+    }, () => { window.clearTimeout(timeout); setLoading(false); setLoadError("Projects cannot load until the Lumi database is available."); });
     const unsubscribeServers = onValue(query(ref(realtimeDb, "hackathon/servers"), orderByChild("createdAt"), limitToLast(40)), (snapshot: { val: () => Record<string, Omit<HackathonServer, "id">> | null }) => {
       setServers(Object.entries(snapshot.val() ?? {}).map(([id, value]) => ({ id, ...value })).sort((a, b) => b.createdAt - a.createdAt));
     }, () => setError("Servers cannot load until the Lumi database is available."));
-    return () => { unsubscribeProjects(); unsubscribeServers(); };
-  }, []);
+    return () => { window.clearTimeout(timeout); unsubscribeProjects(); unsubscribeServers(); };
+  }, [retryKey]);
 
   const visible = useMemo(() => projects.filter((project) => {
     if (myProjects && project.authorId !== viewer?.id) return false;
@@ -62,7 +76,7 @@ export default function HackathonShowcase() {
     const term = search.trim().toLowerCase();
     return !term || [project.title, project.tagline, project.description, project.authorName, ...(project.technologies ?? [])].join(" ").toLowerCase().includes(term);
   }).sort((a, b) => sort === "liked" ? Object.keys(b.likedBy ?? {}).length - Object.keys(a.likedBy ?? {}).length || b.createdAt - a.createdAt : sort === "discussed" ? Object.keys(b.comments ?? {}).length - Object.keys(a.comments ?? {}).length || b.createdAt - a.createdAt : b.createdAt - a.createdAt), [projects, myProjects, viewer?.id, category, technology, search, sort]);
-  const featured = useMemo(() => [...projects].sort((a, b) => Object.keys(b.likedBy ?? {}).length - Object.keys(a.likedBy ?? {}).length).slice(0, 3), [projects]);
+  const featured = useMemo(() => projects.filter((project) => Object.keys(project.likedBy ?? {}).length > 0).sort((a, b) => Object.keys(b.likedBy ?? {}).length - Object.keys(a.likedBy ?? {}).length).slice(0, 3), [projects]);
 
   function chooseImages(list: FileList | null) {
     const next = Array.from(list ?? []);
@@ -76,8 +90,8 @@ export default function HackathonShowcase() {
     event.preventDefault();
     if (busy) return;
     if (!viewer) { setError("Sign in to publish a project."); return; }
-    if (!form.title.trim() || !form.tagline.trim() || !form.description.trim() || !form.technologies.trim() || (form.websiteUrl && !isSafeUrl(form.websiteUrl)) || (form.githubUrl && !isSafeUrl(form.githubUrl, true)) || (form.videoUrl && !isSafeUrl(form.videoUrl))) {
-      setError("Add a title, both descriptions, and technologies. Any links must use HTTPS, and GitHub links must point to GitHub."); return;
+    if (!form.title.trim() || !form.tagline.trim() || !form.technologies.trim() || (form.websiteUrl && !isSafeUrl(form.websiteUrl)) || (form.githubUrl && !isSafeUrl(form.githubUrl, true)) || (form.videoUrl && !isSafeUrl(form.videoUrl))) {
+      setError("Add a title, short description, and technologies. Any links must use HTTPS, and GitHub links must point to GitHub."); return;
     }
     setBusy(true); setError(""); setSuccess("");
     try {
@@ -90,7 +104,7 @@ export default function HackathonShowcase() {
       }
       await set(nextRef, {
         authorId: viewer.id, authorName: viewer.name, authorAvatar: viewer.avatar,
-        title: form.title.trim(), tagline: form.tagline.trim(), description: form.description.trim(), category: form.category,
+        title: form.title.trim(), tagline: form.tagline.trim(), description: form.description.trim() || form.tagline.trim(), category: form.category,
         technologies: form.technologies.split(",").map((item) => item.trim()).filter(Boolean).slice(0, 10),
         websiteUrl: form.websiteUrl.trim(), githubUrl: form.githubUrl.trim(), videoUrl: form.videoUrl.trim(),
         hackathonName: form.hackathonName.trim(), teamMembers: form.teamMembers.split(",").map((item) => item.trim()).filter(Boolean).slice(0, 12),
@@ -128,6 +142,12 @@ export default function HackathonShowcase() {
     catch { setError("Message could not be sent."); }
   }
 
+  async function toggleBookmark(project: HackathonProject) {
+    if (!viewer) { setError("Sign in to bookmark a project."); return; }
+    try { await set(ref(realtimeDb, `hackathon/projects/${project.id}/savedBy/${viewer.id}`), project.savedBy?.[viewer.id] ? null : true); setError(""); }
+    catch { setError("Could not update your bookmark. Try again."); }
+  }
+
   return <main className="space-y-5 pb-10">
     <header className="relative overflow-hidden rounded-[28px] bg-[#0c1425] px-6 py-7 text-white sm:px-8 sm:py-9">
       <div className="absolute -right-10 -top-28 h-72 w-72 rounded-full bg-sky-500/20 blur-3xl" />
@@ -143,6 +163,7 @@ export default function HackathonShowcase() {
       <Link href="/team-finder" className={`rounded-xl px-3 py-2.5 text-center text-sm font-semibold ${muted}`}>Find a team</Link>
     </nav>
     {error && <p role="alert" className="rounded-xl border border-rose-300/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-500">{error}</p>}
+    {loadError && <div role="alert" className="rounded-xl border border-rose-300/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-500">{loadError}<button type="button" onClick={() => setRetryKey((key) => key + 1)} className="ml-3 font-bold underline">Retry</button></div>}
     {success && <p role="status" className="rounded-xl border border-emerald-300/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-600">{success}</p>}
 
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_285px]">
@@ -153,7 +174,7 @@ export default function HackathonShowcase() {
               <label className="text-sm font-semibold">Project title<input required maxLength={100} className={`mt-1.5 ${input}`} value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} placeholder="Give your project a name" /></label>
               <label className="text-sm font-semibold">Category<select className={`mt-1.5 ${input}`} value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })}>{PROJECT_CATEGORIES.map((item) => <option key={item}>{item}</option>)}</select></label>
               <label className="sm:col-span-2 text-sm font-semibold">Short description<input required maxLength={160} className={`mt-1.5 ${input}`} value={form.tagline} onChange={(event) => setForm({ ...form, tagline: event.target.value })} placeholder="One sentence about the problem you solve" /></label>
-              <label className="sm:col-span-2 text-sm font-semibold">The full story<textarea required rows={4} maxLength={3000} className={`mt-1.5 ${input}`} value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} placeholder="What did you build, how does it work, and what did you learn?" /></label>
+              <label className="sm:col-span-2 text-sm font-semibold">The full story <span className={muted}>(optional)</span><textarea rows={4} maxLength={3000} className={`mt-1.5 ${input}`} value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} placeholder="What did you build, how does it work, and what did you learn?" /></label>
               <label className="sm:col-span-2 text-sm font-semibold">Technologies used<input required maxLength={250} className={`mt-1.5 ${input}`} value={form.technologies} onChange={(event) => setForm({ ...form, technologies: event.target.value })} placeholder="React, Firebase, Python (separate with commas)" /></label>
               <label className="text-sm font-semibold">Live website URL <span className={muted}>(optional)</span><input type="url" className={`mt-1.5 ${input}`} value={form.websiteUrl} onChange={(event) => setForm({ ...form, websiteUrl: event.target.value })} placeholder="https://yourproject.com" /></label>
               <label className="text-sm font-semibold">GitHub repository URL <span className={muted}>(optional)</span><input type="url" className={`mt-1.5 ${input}`} value={form.githubUrl} onChange={(event) => setForm({ ...form, githubUrl: event.target.value })} placeholder="https://github.com/you/project" /></label>
@@ -162,6 +183,7 @@ export default function HackathonShowcase() {
               <label className="text-sm font-semibold">Team members <span className={muted}>(optional)</span><input maxLength={250} className={`mt-1.5 ${input}`} value={form.teamMembers} onChange={(event) => setForm({ ...form, teamMembers: event.target.value })} placeholder="Names, separated with commas" /></label>
               <label className="text-sm font-semibold">Public server <span className={muted}>(optional)</span><select className={`mt-1.5 ${input}`} value={form.serverId} onChange={(event) => setForm({ ...form, serverId: event.target.value })}><option value="">None</option>{servers.map((server) => <option key={server.id} value={server.id}>{server.name}</option>)}</select></label>
               <label className={`sm:col-span-2 flex cursor-pointer items-center gap-3 rounded-xl border border-dashed p-4 text-sm ${dark ? "border-white/20" : "border-slate-300"}`}><ImagePlus className="h-5 w-5 text-sky-500" /><span>{screenshots.length ? screenshots.map((file) => file.name).join(", ") : "Add up to 2 screenshots • 5 MB each"}</span><input className="hidden" type="file" accept="image/*" multiple onChange={(event) => chooseImages(event.target.files)} /></label>
+              {imagePreviews.length > 0 && <div className="sm:col-span-2 grid grid-cols-2 gap-3">{imagePreviews.map((url, index) => <img key={url} src={url} alt={`Screenshot preview ${index + 1}`} className="h-32 w-full rounded-xl object-cover" />)}</div>}
               <div className={`sm:col-span-2 rounded-xl border p-4 ${dark ? "border-white/10 bg-white/5" : "border-slate-200 bg-slate-50"}`}><p className={`text-xs font-bold uppercase tracking-widest ${muted}`}>Submission preview</p><h3 className="mt-1 font-bold">{form.title || "Your project title"}</h3><p className={`mt-1 text-sm ${muted}`}>{form.tagline || "Your short description appears here."}</p><p className="mt-2 text-xs text-sky-500">{form.category} {form.technologies && `· ${form.technologies}`}</p></div>
               <div className="sm:col-span-2 flex justify-end"><button disabled={busy} className="rounded-full bg-sky-400 px-5 py-3 text-sm font-bold text-slate-950 disabled:opacity-50">{busy ? "Publishing…" : "Publish project"}</button></div>
             </form>
@@ -169,7 +191,9 @@ export default function HackathonShowcase() {
           {featured.length > 0 && !myProjects && !search && category === "All categories" && <section><div className="mb-3 flex items-center gap-2"><Sparkles className="h-4 w-4 text-sky-500" /><h2 className="text-lg font-bold">Community favorites</h2></div><div className="grid gap-3 sm:grid-cols-3">{featured.map((project) => <Link key={project.id} href={`/hackathon/project/${project.id}`} className="rounded-2xl border border-sky-400/20 bg-[#111b30] p-4 text-white transition hover:border-sky-400/60"><p className="text-xs font-semibold text-sky-300">{project.category || "Project"}</p><h3 className="mt-2 line-clamp-1 font-bold">{project.title}</h3><p className="mt-1 line-clamp-2 text-xs text-slate-400">{project.tagline || project.description}</p><span className="mt-3 inline-flex items-center gap-1 text-xs text-sky-300">View project <ArrowRight className="h-3 w-3" /></span></Link>)}</div></section>}
           <div className="flex flex-wrap items-end justify-between gap-3"><div><h2 className="text-xl font-bold">{myProjects ? "My projects" : "Explore projects"}</h2><p className={`mt-0.5 text-sm ${muted}`}>{myProjects ? "Your developer portfolio on Lumi." : "Real ideas from student builders."}</p></div><span className={`text-xs ${muted}`}>{visible.length} shown</span></div>
           <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_170px_160px_150px]"><label className="relative"><Search className={`absolute left-3 top-3 h-4 w-4 ${muted}`} /><input aria-label="Search projects" value={search} onChange={(event) => setSearch(event.target.value)} className={`${input} pl-9`} placeholder="Search projects or technology" /></label><label className="relative"><Filter className={`absolute left-3 top-3 h-4 w-4 ${muted}`} /><select aria-label="Filter by category" className={`${input} pl-9`} value={category} onChange={(event) => setCategory(event.target.value)}><option>All categories</option>{PROJECT_CATEGORIES.map((item) => <option key={item}>{item}</option>)}</select></label><select aria-label="Filter by technology" className={input} value={technology} onChange={(event) => setTechnology(event.target.value)}><option>All technologies</option>{technologies.map((item) => <option key={item}>{item}</option>)}</select><select aria-label="Sort projects" className={input} value={sort} onChange={(event) => setSort(event.target.value as "newest" | "liked" | "discussed")}><option value="newest">Newest</option><option value="liked">Most liked</option><option value="discussed">Most discussed</option></select></div>
-          {loading ? <div className={`rounded-2xl border p-8 ${card}`}><Loader2 className="mx-auto animate-spin text-sky-500" /><p className={`mt-3 text-center text-sm ${muted}`}>Loading projects…</p></div> : visible.length ? <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">{visible.map((project) => <article key={project.id} className={`overflow-hidden rounded-[22px] border transition hover:-translate-y-0.5 hover:shadow-lg ${card}`}><div className="flex h-40 items-center justify-center overflow-hidden bg-gradient-to-br from-[#20365b] via-[#293456] to-[#4a2f62]">{project.imageUrls?.[0] ? <img src={project.imageUrls[0]} alt={`${project.title} thumbnail`} className="h-full w-full object-cover" /> : <div className="px-4 text-center"><Code2 className="mx-auto mb-3 h-7 w-7 text-sky-300" /><strong className="line-clamp-2 text-lg uppercase tracking-wide text-white">{project.title}</strong></div>}</div><div className="p-4"><p className="text-xs font-semibold text-sky-500">{project.category || "Student project"}</p><h3 className="mt-1 line-clamp-1 text-base font-bold">{project.title}</h3><p className={`mt-1 line-clamp-2 min-h-10 text-sm leading-5 ${muted}`}>{project.tagline || project.description}</p><div className="mt-3 flex flex-wrap gap-1">{project.technologies?.slice(0, 3).map((tech) => <span key={tech} className={`rounded-full px-2 py-1 text-[11px] ${dark ? "bg-white/10 text-slate-300" : "bg-slate-100 text-slate-600"}`}>{tech}</span>)}</div><div className={`mt-4 flex items-center justify-between border-t pt-3 ${dark ? "border-white/10" : "border-slate-100"}`}><div className="flex min-w-0 items-center gap-2"><img src={project.authorAvatar || `https://api.dicebear.com/9.x/notionists/svg?seed=${encodeURIComponent(project.authorId)}`} alt="" className="h-7 w-7 rounded-full" /><span className={`truncate text-xs ${muted}`}>{project.authorName}</span></div><span className={`text-xs ${muted}`}>{Object.keys(project.likedBy ?? {}).length} likes</span></div><Link href={`/hackathon/project/${project.id}`} className="mt-3 flex items-center justify-between rounded-xl bg-sky-400 px-3 py-2.5 text-sm font-bold text-slate-950">View project <ArrowUpRight className="h-4 w-4" /></Link></div></article>)}</div> : <div className={`rounded-2xl border p-10 text-center ${card}`}><BookOpen className="mx-auto h-9 w-9 text-sky-500" /><h3 className="mt-3 font-bold">{myProjects ? "Your portfolio starts here" : "No projects match yet"}</h3><p className={`mt-1 text-sm ${muted}`}>{myProjects ? "Publish a project to show your work." : "Try another search or category."}</p></div>}
+          {loading ? <div className={`rounded-2xl border p-8 ${card}`}><Loader2 className="mx-auto animate-spin text-sky-500" /><p className={`mt-3 text-center text-sm ${muted}`}>Loading projects…</p></div> : visible.length ? <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">{visible.slice(0, visibleCount).map((project) => <article key={project.id} className={`overflow-hidden rounded-[22px] border transition hover:-translate-y-0.5 hover:shadow-lg ${card}`}><div className="flex h-40 items-center justify-center overflow-hidden bg-gradient-to-br from-[#20365b] via-[#293456] to-[#4a2f62]">{project.imageUrls?.[0] ? <img src={project.imageUrls[0]} alt={`${project.title} thumbnail`} className="h-full w-full object-cover" /> : <div className="px-4 text-center"><Code2 className="mx-auto mb-3 h-7 w-7 text-sky-300" /><strong className="line-clamp-2 text-lg uppercase tracking-wide text-white">{project.title}</strong></div>}</div><div className="p-4"><p className="text-xs font-semibold text-sky-500">{project.category || "Student project"}</p><h3 className="mt-1 line-clamp-1 text-base font-bold">{project.title}</h3><p className={`mt-1 line-clamp-2 min-h-10 text-sm leading-5 ${muted}`}>{project.tagline || project.description}</p><div className="mt-3 flex flex-wrap gap-1">{project.technologies?.slice(0, 3).map((tech) => <span key={tech} className={`rounded-full px-2 py-1 text-[11px] ${dark ? "bg-white/10 text-slate-300" : "bg-slate-100 text-slate-600"}`}>{tech}</span>)}</div><div className={`mt-4 flex items-center justify-between border-t pt-3 ${dark ? "border-white/10" : "border-slate-100"}`}><div className="flex min-w-0 items-center gap-2"><img src={project.authorAvatar || `https://api.dicebear.com/9.x/notionists/svg?seed=${encodeURIComponent(project.authorId)}`} alt="" className="h-7 w-7 rounded-full" /><span className={`truncate text-xs ${muted}`}>{project.authorName}</span></div><div className="flex items-center gap-2"><span className={`text-xs ${muted}`}>{Object.keys(project.likedBy ?? {}).length} likes · {Object.keys(project.comments ?? {}).length} comments</span><button type="button" aria-label={project.savedBy?.[viewer?.id ?? ""] ? "Remove bookmark" : "Bookmark project"} onClick={() => void toggleBookmark(project)} className="rounded-full p-1 hover:bg-sky-400/10"><Bookmark className={`h-4 w-4 ${project.savedBy?.[viewer?.id ?? ""] ? "fill-sky-400 text-sky-400" : ""}`} /></button></div></div><p className={`mt-2 text-xs ${muted}`}>Published {formatProjectDate(project.createdAt)}{project.hackathonName ? ` · ${project.hackathonName}` : ""}</p><Link href={`/hackathon/project/${project.id}`} className="mt-3 flex items-center justify-between rounded-xl bg-sky-400 px-3 py-2.5 text-sm font-bold text-slate-950">View project <ArrowUpRight className="h-4 w-4" /></Link></div></article>)}</div> : <div className={`rounded-2xl border p-10 text-center ${card}`}><BookOpen className="mx-auto h-9 w-9 text-sky-500" /><h3 className="mt-3 font-bold">{myProjects ? "Your portfolio starts here" : "No projects match yet"}</h3><p className={`mt-1 text-sm ${muted}`}>{myProjects ? "Publish a project to show your work." : "Try another search or category."}</p></div>}
+          {visible.length > visibleCount && <button type="button" onClick={() => setVisibleCount((count) => count + 12)} className="mx-auto block rounded-full border border-sky-400/30 px-5 py-2.5 text-sm font-bold text-sky-500">Load more projects</button>}
+          {!loading && !visible.length && !search && category === "All categories" && technology === "All technologies" && <button type="button" onClick={() => setShowPublish(true)} className="mx-auto block rounded-full bg-sky-400 px-5 py-2.5 text-sm font-bold text-slate-950">Publish a project</button>}
         </> : <>
           <div className="flex items-end justify-between gap-3"><div><h2 className="text-xl font-bold">Public servers</h2><p className={`mt-1 text-sm ${muted}`}>A space for students to build together.</p></div><button onClick={() => setShowServerForm(true)} className="rounded-full bg-sky-400 px-4 py-2 text-sm font-bold text-slate-950">Create server</button></div>
           {showServerForm && <form onSubmit={createServer} className={`space-y-3 rounded-2xl border p-5 ${card}`}><div className="flex items-center justify-between"><h3 className="font-bold">New server</h3><button type="button" aria-label="Close server form" onClick={() => setShowServerForm(false)}><X className="h-4 w-4" /></button></div><input required maxLength={80} className={input} placeholder="Server name" value={serverForm.name} onChange={(event) => setServerForm({ ...serverForm, name: event.target.value })} /><input required maxLength={80} className={input} placeholder="Topic or domain" value={serverForm.domain} onChange={(event) => setServerForm({ ...serverForm, domain: event.target.value })} /><textarea required maxLength={500} rows={3} className={input} placeholder="What will students discuss here?" value={serverForm.details} onChange={(event) => setServerForm({ ...serverForm, details: event.target.value })} /><button disabled={busy} className="rounded-full bg-sky-400 px-4 py-2 text-sm font-bold text-slate-950 disabled:opacity-50">{busy ? "Creating…" : "Create server"}</button></form>}

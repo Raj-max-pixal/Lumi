@@ -9,6 +9,7 @@ import { realtimeDb, storage } from "@/lib/firebase";
 import { LumiViewer } from "@/components/AuthPanel";
 import { ensureUserProfile } from "@/lib/social-firebase";
 import { isSafeUrl } from "@/lib/hackathon";
+import { DEVELOPER_TOPICS } from "@/lib/developer-topics";
 
 type EditableProfile = {
   name: string;
@@ -47,11 +48,15 @@ export default function EditProfilePanel({
   const [file, setFile] = useState<File | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [status, setStatus] = useState("Load your profile to edit it.");
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
     if (!viewer) {
       return;
     }
+    setLoadFailed(false);
+    const timeout = window.setTimeout(() => { setLoadFailed(true); setStatus("Profile data is taking too long to load."); }, 10000);
 
     const profileRef = ref(realtimeDb, `publicProfiles/${viewer.id}`);
     const unsubscribe = onValue(profileRef, (snapshot: { val: () => unknown }) => {
@@ -70,14 +75,16 @@ export default function EditProfilePanel({
         linkedinUrl: value?.linkedinUrl ?? ""
       });
       setStatus("Profile synced.");
-    });
+      setLoadFailed(false);
+      window.clearTimeout(timeout);
+    }, () => { setLoadFailed(true); setStatus("Could not load your profile from Lumi's database."); window.clearTimeout(timeout); });
     const unsubscribePrivate = onValue(ref(realtimeDb, `privateProfiles/${viewer.id}/city`), (snapshot: { val: () => unknown }) => {
       const privateCity = snapshot.val();
       if (typeof privateCity === "string") setProfile((current) => ({ ...current, city: privateCity }));
     });
 
-    return () => { unsubscribe(); unsubscribePrivate(); };
-  }, [viewer]);
+    return () => { window.clearTimeout(timeout); unsubscribe(); unsubscribePrivate(); };
+  }, [viewer, retryKey]);
 
   async function saveProfile() {
     if (!viewer) {
@@ -177,7 +184,6 @@ export default function EditProfilePanel({
               }`}
             />
           </div>
-
           <div className="grid gap-4 md:grid-cols-1">
             <input
               value={profile.city}
@@ -194,6 +200,7 @@ export default function EditProfilePanel({
             <input value={profile.skills} onChange={(event) => setProfile((current) => ({ ...current, skills: event.target.value }))} placeholder="Skills: React, Python, UI design" maxLength={300} className={`rounded-[24px] border px-4 py-3 text-sm outline-none ${isFocusMode ? "border-slate-200 bg-slate-50 text-slate-900" : "border-white/10 bg-black/20 text-white"}`} />
             <input value={profile.interests} onChange={(event) => setProfile((current) => ({ ...current, interests: event.target.value }))} placeholder="Interests: AI, open source" maxLength={300} className={`rounded-[24px] border px-4 py-3 text-sm outline-none ${isFocusMode ? "border-slate-200 bg-slate-50 text-slate-900" : "border-white/10 bg-black/20 text-white"}`} />
           </div>
+          <div><p className="mb-2 text-sm font-medium">Topics you want to learn</p><div className="flex flex-wrap gap-2">{DEVELOPER_TOPICS.map((item) => { const selected = profile.interests.split(",").map((value) => value.trim()).includes(item); return <button key={item} type="button" aria-pressed={selected} onClick={() => setProfile((current) => { const values = current.interests.split(",").map((value) => value.trim()).filter(Boolean); return { ...current, interests: (values.includes(item) ? values.filter((value) => value !== item) : [...values, item]).join(", ") }; })} className={`rounded-full border px-3 py-1.5 text-xs ${selected ? "border-lumi-purple bg-lumi-purple text-white" : isFocusMode ? "border-slate-200 text-slate-700" : "border-white/20 text-white/75"}`}>{item}</button>; })}</div></div>
           <div className="grid gap-4 md:grid-cols-3">
             {(["portfolioUrl", "githubUrl", "linkedinUrl"] as const).map((field) => <input key={field} type="url" value={profile[field]} onChange={(event) => setProfile((current) => ({ ...current, [field]: event.target.value }))} placeholder={field === "portfolioUrl" ? "Portfolio URL" : field === "githubUrl" ? "GitHub profile URL" : "LinkedIn profile URL"} className={`rounded-[24px] border px-4 py-3 text-sm outline-none ${isFocusMode ? "border-slate-200 bg-slate-50 text-slate-900" : "border-white/10 bg-black/20 text-white"}`} />)}
           </div>
@@ -208,7 +215,7 @@ export default function EditProfilePanel({
           />
 
           <div className="flex items-center justify-between gap-4">
-            <p className={isFocusMode ? "text-sm text-slate-500" : "text-sm text-white/60"}>{status}</p>
+            <div><p role="status" className={isFocusMode ? "text-sm text-slate-500" : "text-sm text-white/60"}>{status}</p>{loadFailed && <button type="button" onClick={() => setRetryKey((key) => key + 1)} className="mt-1 text-sm font-semibold text-lumi-purple underline">Retry loading</button>}</div>
             <button
               type="button"
               onClick={() => void saveProfile()}

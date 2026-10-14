@@ -27,6 +27,7 @@ export type FeedItem = {
   likes: number;
   commentsCount: number;
   shares: number;
+  createdAt?: number;
   tags: string[];
   comments?: FeedComment[];
   likedBy?: Record<string, true>;
@@ -51,6 +52,8 @@ export type RealtimeProfileRecord = {
   avatar?: string;
   bio?: string;
   city?: string;
+  showLocation?: boolean;
+  interests?: string[];
 };
 
 export type RealtimeCommentRecord = {
@@ -114,7 +117,7 @@ export function buildDiscoverPayloadFromRealtime(args: {
       name: profile.name?.trim() || "Lumi User",
       username: profile.username?.startsWith("@") ? profile.username : buildUsername(profile.username ?? profile.name ?? "", id),
       avatar: profile.avatar || "https://api.dicebear.com/9.x/notionists/svg?seed=LumiProfile",
-      city: profile.city?.trim() || "Lumi"
+      city: profile.showLocation ? profile.city?.trim() || "Lumi" : "Lumi"
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
 
@@ -129,7 +132,7 @@ export function buildDiscoverPayloadFromRealtime(args: {
             ? authorProfile.username
             : buildUsername(authorProfile?.username ?? authorProfile?.name ?? "", post.authorId),
         avatar: authorProfile?.avatar || post.authorAvatar || "https://api.dicebear.com/9.x/notionists/svg?seed=LumiProfile",
-        city: authorProfile?.city?.trim() || "Lumi"
+        city: authorProfile?.showLocation ? authorProfile.city?.trim() || "Lumi" : "Lumi"
       };
 
       const tags = post.tags?.length ? post.tags : extractTags(post.caption);
@@ -146,7 +149,8 @@ export function buildDiscoverPayloadFromRealtime(args: {
         likes: Object.keys(post.likedBy ?? {}).length,
         commentsCount: Object.keys(post.comments ?? {}).length,
         shares: post.shares ?? 0,
-        tags: tags.length ? tags : [contentType === "image" ? "Photo" : "Thread"],
+        createdAt: post.createdAt,
+        tags: tags.length ? tags : [contentType === "image" ? "Photo" : contentType === "video" ? "Reel" : "Thread"],
         comments: Object.entries(post.comments ?? {})
           .map(([commentId, comment]) => ({
             id: commentId,
