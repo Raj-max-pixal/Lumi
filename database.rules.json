@@ -36,6 +36,40 @@
         }
       }
     },
+    "hackathon": {
+      "projects": {
+        ".read": true,
+        "$projectId": {
+          ".write": "auth !== null && !data.exists() && newData.child('authorId').val() === auth.uid",
+          ".validate": "newData.hasChildren(['authorId', 'authorName', 'title', 'websiteUrl', 'githubUrl', 'description', 'createdAt']) && newData.child('title').isString() && newData.child('title').val().length <= 100 && newData.child('description').isString() && newData.child('description').val().length <= 3000 && newData.child('websiteUrl').isString() && newData.child('githubUrl').isString() && newData.child('createdAt').isNumber()",
+          "votes": {
+            "$uid": {
+              ".write": "auth !== null && auth.uid === $uid && root.child('hackathon').child('projects').child($projectId).exists()",
+              ".validate": "newData.val() === 'yes' || newData.val() === 'no'"
+            }
+          }
+        }
+      },
+      "servers": {
+        ".read": true,
+        "$serverId": {
+          ".write": "auth !== null && !data.exists() && newData.child('ownerId').val() === auth.uid",
+          ".validate": "newData.hasChildren(['ownerId', 'name', 'details', 'domain', 'createdAt']) && newData.child('name').isString() && newData.child('name').val().length <= 80 && newData.child('details').isString() && newData.child('details').val().length <= 500 && newData.child('domain').isString() && newData.child('domain').val().length <= 80",
+          "messages": {
+            "$messageId": {
+              ".write": "auth !== null && !data.exists() && newData.child('authorId').val() === auth.uid && root.child('hackathon').child('servers').child($serverId).child('members').child(auth.uid).val() === true",
+              ".validate": "newData.hasChildren(['authorId', 'authorName', 'text', 'createdAt']) && newData.child('text').isString() && newData.child('text').val().length <= 1000"
+            }
+          },
+          "members": {
+            "$uid": {
+              ".write": "auth !== null && auth.uid === $uid && !data.exists() && root.child('hackathon').child('servers').child($serverId).exists()",
+              ".validate": "newData.val() === true"
+            }
+          }
+        }
+      }
+    },
     "stories": {
       ".read": true,
       "$storyId": {
