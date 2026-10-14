@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { onValue, push, ref, set } from "firebase/database";
+import { get, onValue, push, ref, set } from "firebase/database";
 import { SendHorizonal } from "lucide-react";
 import { LumiViewer } from "@/components/AuthPanel";
 import { realtimeDb } from "@/lib/firebase";
@@ -24,14 +24,22 @@ export default function ChatWindow({ viewer, isFocusMode = false }: { viewer: Lu
     if (!viewer) return;
     setStatus("");
     const nextRoomId = [viewer.id, personId].sort().join("_");
+    const participantsRef = ref(realtimeDb, `directMessages/${nextRoomId}/participants`);
     try {
-      await set(ref(realtimeDb, `directMessages/${nextRoomId}/participants`), {
+      await set(participantsRef, {
         [viewer.id]: true,
         [personId]: true
       });
       setTargetId(personId);
     } catch {
-      setStatus("Could not open this conversation. Check Firebase access.");
+      // An existing room is immutable. Its members can still read it.
+      try {
+        const existing = await get(participantsRef);
+        if (!existing.child(viewer.id).exists() || !existing.child(personId).exists()) throw new Error("Not a participant");
+        setTargetId(personId);
+      } catch {
+        setStatus("Could not open this conversation. Check Firebase access.");
+      }
     }
   }
 

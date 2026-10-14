@@ -13,7 +13,7 @@ import {
 } from "firebase/auth";
 import { Loader2, LogOut } from "lucide-react";
 import { auth } from "@/lib/firebase";
-import { createUserProfileIfMissing } from "@/lib/social-firebase";
+import { createUserProfileIfMissing, ensureUserProfile } from "@/lib/social-firebase";
 
 export type LumiViewer = {
   id: string;
@@ -83,12 +83,15 @@ export default function AuthPanel({
           username: user.email ? `@${user.email.split("@")[0].replace(/[^a-z0-9_]/gi, "").toLowerCase()}` : undefined
         };
 
-        void createUserProfileIfMissing({
-          id: nextViewer.id,
-          name: nextViewer.name,
-          avatar: nextViewer.avatar,
-          username: nextViewer.username
-        }).catch(() => setStatus("Signed in, but the database is unavailable."));
+        // Email signup fires this callback before the chosen display name is saved.
+        if (user.displayName || !user.email) {
+          void createUserProfileIfMissing({
+            id: nextViewer.id,
+            name: nextViewer.name,
+            avatar: nextViewer.avatar,
+            username: nextViewer.username
+          }).catch(() => setStatus("Signed in, but the database is unavailable."));
+        }
 
         setViewer(nextViewer);
         onViewerChange(nextViewer);
@@ -137,12 +140,21 @@ export default function AuthPanel({
           displayName: displayName.trim(),
           photoURL: buildGuestProfile(credential.user.uid).avatar
         });
-        await createUserProfileIfMissing({
+        // Persist the chosen name after Auth has finished creating the account.
+        await ensureUserProfile({
           id: credential.user.uid,
           name: displayName.trim(),
           avatar: buildGuestProfile(credential.user.uid).avatar,
           username: `@${email.split("@")[0].replace(/[^a-z0-9_]/gi, "").toLowerCase()}`
         });
+        const nextViewer = {
+          id: credential.user.uid,
+          name: displayName.trim(),
+          avatar: buildGuestProfile(credential.user.uid).avatar,
+          username: `@${email.split("@")[0].replace(/[^a-z0-9_]/gi, "").toLowerCase()}`
+        };
+        setViewer(nextViewer);
+        onViewerChange(nextViewer);
       } else {
         await signInWithEmailAndPassword(auth, email.trim(), password);
       }
