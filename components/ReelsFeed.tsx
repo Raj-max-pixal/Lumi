@@ -12,11 +12,13 @@ export default function ReelsFeed({
   feed,
   viewer,
   interests,
+  loadError = "",
   isFocusMode = false
 }: {
   feed: DiscoverPayload["feed"];
   viewer: LumiViewer | null;
   interests: string[];
+  loadError?: string;
   isFocusMode?: boolean;
 }) {
   const [view, setView] = useState<"for-you" | "all">("for-you");
@@ -73,7 +75,7 @@ export default function ReelsFeed({
             />
           </div>
         ))}
-        {!reels.length ? <div className="rounded-[24px] border border-current/10 p-8 text-center text-sm"><p>{topic ? `No ${topic} reels yet.` : view === "for-you" && preferredTopics.length ? "No reels match your interests yet." : "No developer reels yet."}</p><p className="mt-2 opacity-65">{view === "for-you" && preferredTopics.length ? "Explore all topics or share a reel about what you are building." : "Share a short project demo or tutorial to start the feed."}</p>{view === "for-you" && preferredTopics.length && <button type="button" onClick={() => setView("all")} className="mt-3 rounded-full bg-lumi-purple px-4 py-2 font-semibold text-white">Explore all reels</button>}</div> : null}
+        {!reels.length && !loadError ? <div className="rounded-[24px] border border-current/10 p-8 text-center text-sm"><p>{topic ? `No ${topic} reels yet.` : view === "for-you" && preferredTopics.length ? "No reels match your interests yet." : "No developer reels yet."}</p><p className="mt-2 opacity-65">{view === "for-you" && preferredTopics.length ? "Explore all topics or share a reel about what you are building." : "Share a short project demo or tutorial to start the feed."}</p>{view === "for-you" && preferredTopics.length && <button type="button" onClick={() => setView("all")} className="mt-3 rounded-full bg-lumi-purple px-4 py-2 font-semibold text-white">Explore all reels</button>}</div> : null}
       </div>
     </div>
   );

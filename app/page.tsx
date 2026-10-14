@@ -165,7 +165,7 @@ export default function HomePage() {
       case "clips":
         return (
           <div className="mx-auto max-w-xl">
-            <ReelsFeed feed={data.feed} viewer={viewer} interests={viewer ? profilesById[viewer.id]?.interests ?? [] : []} isFocusMode={isFocusMode} />
+            <ReelsFeed feed={data.feed} viewer={viewer} interests={viewer ? profilesById[viewer.id]?.interests ?? [] : []} loadError={error} isFocusMode={isFocusMode} />
           </div>
         );
       case "following":
