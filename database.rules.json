@@ -39,19 +39,82 @@
     "hackathon": {
       "projects": {
         ".read": true,
+        ".indexOn": ["createdAt", "authorId"],
         "$projectId": {
-          ".write": "auth !== null && !data.exists() && newData.child('authorId').val() === auth.uid",
-          ".validate": "newData.hasChildren(['authorId', 'authorName', 'title', 'websiteUrl', 'githubUrl', 'description', 'createdAt']) && newData.child('title').isString() && newData.child('title').val().length <= 100 && newData.child('description').isString() && newData.child('description').val().length <= 3000 && newData.child('websiteUrl').isString() && newData.child('githubUrl').isString() && newData.child('createdAt').isNumber()",
-          "votes": {
+          ".write": "auth !== null && ((!data.exists() && newData.child('authorId').val() === auth.uid) || (data.exists() && !newData.exists() && data.child('authorId').val() === auth.uid))",
+          ".validate": "newData.hasChildren(['authorId', 'authorName', 'title', 'websiteUrl', 'githubUrl', 'description', 'createdAt']) && newData.child('title').isString() && newData.child('title').val().length > 0 && newData.child('title').val().length <= 100 && newData.child('description').isString() && newData.child('description').val().length > 0 && newData.child('description').val().length <= 3000 && newData.child('websiteUrl').isString() && newData.child('websiteUrl').val().beginsWith('https://') && newData.child('githubUrl').isString() && newData.child('githubUrl').val().beginsWith('https://github.com/') && newData.child('createdAt').isNumber()",
+          "title": { ".write": "auth !== null && data.parent().child('authorId').val() === auth.uid && newData.isString()", ".validate": "newData.val().length > 0 && newData.val().length <= 100" },
+          "tagline": { ".write": "auth !== null && data.parent().child('authorId').val() === auth.uid && newData.isString()", ".validate": "newData.val().length <= 160" },
+          "description": { ".write": "auth !== null && data.parent().child('authorId').val() === auth.uid && newData.isString()", ".validate": "newData.val().length > 0 && newData.val().length <= 3000" },
+          "category": { ".write": "auth !== null && data.parent().child('authorId').val() === auth.uid && newData.isString()", ".validate": "newData.val().length <= 80" },
+          "technologies": { ".write": "auth !== null && data.parent().child('authorId').val() === auth.uid" },
+          "likedBy": {
             "$uid": {
               ".write": "auth !== null && auth.uid === $uid && root.child('hackathon').child('projects').child($projectId).exists()",
-              ".validate": "newData.val() === 'yes' || newData.val() === 'no'"
+              ".validate": "newData.val() === true"
+            }
+          },
+          "savedBy": {
+            "$uid": { ".write": "auth !== null && auth.uid === $uid && root.child('hackathon').child('projects').child($projectId).exists()", ".validate": "newData.val() === true" }
+          },
+          "comments": {
+            "$commentId": {
+              ".write": "auth !== null && ((!data.exists() && newData.child('authorId').val() === auth.uid) || (data.exists() && !newData.exists() && data.child('authorId').val() === auth.uid))",
+              ".validate": "newData.hasChildren(['authorId', 'authorName', 'body', 'createdAt']) && newData.child('body').isString() && newData.child('body').val().length > 0 && newData.child('body').val().length <= 1000"
+            }
+          }
+        }
+      },
+      "reports": {
+        "$projectId": {
+          "$uid": {
+            ".write": "auth !== null && auth.uid === $uid && !data.exists() && root.child('hackathon').child('projects').child($projectId).exists()",
+            ".validate": "newData.hasChildren(['reporterId', 'reason', 'createdAt']) && newData.child('reporterId').val() === $uid && newData.child('reason').val() === 'inappropriate-or-spam'"
+          }
+        }
+      },
+      "discoverableStudents": {
+        ".read": true,
+        "$uid": {
+          ".write": "auth !== null && auth.uid === $uid",
+          ".validate": "newData.hasChildren(['name', 'avatar', 'bio', 'role', 'level', 'availability']) && newData.child('name').isString() && newData.child('bio').isString() && newData.child('bio').val().length <= 300 && newData.child('role').isString() && newData.child('role').val().length <= 80"
+        }
+      },
+      "teams": {
+        ".read": true,
+        ".indexOn": ["createdAt"],
+        "$teamId": {
+          ".write": "auth !== null && !data.exists() && newData.child('ownerId').val() === auth.uid && newData.child('members').child(auth.uid).val() === true",
+          ".validate": "newData.hasChildren(['ownerId', 'ownerName', 'name', 'description', 'idea', 'maxMembers', 'recruiting', 'createdAt']) && newData.child('name').isString() && newData.child('name').val().length > 0 && newData.child('name').val().length <= 80 && newData.child('description').isString() && newData.child('description').val().length <= 500 && newData.child('idea').isString() && newData.child('idea').val().length <= 200 && newData.child('maxMembers').isNumber() && newData.child('maxMembers').val() >= 2 && newData.child('maxMembers').val() <= 12 && newData.child('members').numChildren() <= newData.child('maxMembers').val()",
+          "recruiting": {
+            ".write": "auth !== null && data.parent().child('ownerId').val() === auth.uid",
+            ".validate": "newData.isBoolean()"
+          },
+          "members": {
+            "$uid": {
+              ".write": "auth !== null && data.parent().parent().child('ownerId').val() !== $uid && ((newData.val() === true && auth.uid === data.parent().parent().child('ownerId').val() && root.child('hackathon').child('teamRequests').child($teamId).child($uid).child('status').val() === 'pending' && newData.parent().numChildren() <= data.parent().parent().child('maxMembers').val()) || (!newData.exists() && (auth.uid === $uid || auth.uid === data.parent().parent().child('ownerId').val())))",
+              ".validate": "newData.val() === true"
+            }
+          }
+        }
+      },
+      "teamRequests": {
+        "$teamId": {
+          ".read": "auth !== null && root.child('hackathon').child('teams').child($teamId).child('ownerId').val() === auth.uid",
+          "$uid": {
+            ".read": "auth !== null && auth.uid === $uid",
+            ".write": "auth !== null && auth.uid === $uid && !data.exists() && newData.child('userId').val() === auth.uid && newData.child('status').val() === 'pending' && root.child('hackathon').child('teams').child($teamId).child('recruiting').val() === true",
+            ".validate": "newData.hasChildren(['userId', 'name', 'message', 'status', 'createdAt']) && newData.child('message').isString() && newData.child('message').val().length <= 500 && (newData.child('status').val() === 'pending' || newData.child('status').val() === 'accepted' || newData.child('status').val() === 'rejected')",
+            "status": {
+              ".write": "auth !== null && root.child('hackathon').child('teams').child($teamId).child('ownerId').val() === auth.uid && data.val() === 'pending'",
+              ".validate": "newData.val() === 'accepted' || newData.val() === 'rejected'"
             }
           }
         }
       },
       "servers": {
         ".read": true,
+        ".indexOn": ["createdAt"],
         "$serverId": {
           ".write": "auth !== null && !data.exists() && newData.child('ownerId').val() === auth.uid",
           ".validate": "newData.hasChildren(['ownerId', 'name', 'details', 'domain', 'createdAt']) && newData.child('name').isString() && newData.child('name').val().length <= 80 && newData.child('details').isString() && newData.child('details').val().length <= 500 && newData.child('domain').isString() && newData.child('domain').val().length <= 80",

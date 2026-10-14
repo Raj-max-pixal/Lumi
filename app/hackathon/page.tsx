@@ -1,5 +1,5 @@
-import HackathonPortal from "@/components/HackathonPortal";
+import HackathonShowcase from "@/components/HackathonShowcase";
 
 export default function HackathonPage() {
-  return <HackathonPortal />;
+  return <HackathonShowcase />;
 }

@@ -2,14 +2,15 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Grid3X3, PlaySquare } from "lucide-react";
+import { Code2, Grid3X3, PlaySquare } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { onValue, ref } from "firebase/database";
+import { equalTo, onValue, orderByChild, query, ref } from "firebase/database";
 import { realtimeDb } from "@/lib/firebase";
 import { LumiViewer } from "@/components/AuthPanel";
 import EditProfilePanel from "@/components/EditProfilePanel";
 import LumiCard from "@/components/LumiCard";
 import { FirebaseProfile, toggleFollowUser } from "@/lib/social-firebase";
+import { HackathonProject } from "@/lib/hackathon";
 
 type ProfileScreenProps = {
   viewer: LumiViewer | null;
@@ -42,10 +43,11 @@ export default function ProfileScreen({
   const targetUserId = profileUserId || viewer?.id || null;
   const [profile, setProfile] = useState<FirebaseProfile | null>(null);
   const [posts, setPosts] = useState<ProfilePost[]>([]);
+  const [projects, setProjects] = useState<HackathonProject[]>([]);
   const [followers, setFollowers] = useState<string[]>([]);
   const [following, setFollowing] = useState<string[]>([]);
   const [viewerFollowing, setViewerFollowing] = useState<string[]>([]);
-  const [activeTab, setActiveTab] = useState<"posts" | "reels">("posts");
+  const [activeTab, setActiveTab] = useState<"posts" | "reels" | "projects">("posts");
 
   useEffect(() => {
     if (!targetUserId) {
@@ -54,6 +56,7 @@ export default function ProfileScreen({
 
     const profileRef = ref(realtimeDb, `publicProfiles/${targetUserId}`);
     const postsRef = ref(realtimeDb, "community/posts");
+    const projectsRef = query(ref(realtimeDb, "hackathon/projects"), orderByChild("authorId"), equalTo(targetUserId));
     const followersRef = ref(realtimeDb, `relationships/followers/${targetUserId}`);
     const followingRef = ref(realtimeDb, `relationships/following/${targetUserId}`);
 
@@ -77,6 +80,11 @@ export default function ProfileScreen({
       setPosts(nextPosts);
     });
 
+    const unsubProjects = onValue(projectsRef, (snapshot: { val: () => unknown }) => {
+      const value = snapshot.val() as Record<string, Omit<HackathonProject, "id">> | null;
+      setProjects(Object.entries(value ?? {}).map(([id, payload]) => ({ id, ...payload })).sort((a, b) => b.createdAt - a.createdAt));
+    }, () => setProjects([]));
+
     const unsubFollowers = onValue(followersRef, (snapshot: { val: () => unknown }) => {
       const value = snapshot.val() as Record<string, { createdAt: number }> | null;
       setFollowers(value ? Object.keys(value) : []);
@@ -90,6 +98,7 @@ export default function ProfileScreen({
     return () => {
       unsubProfile();
       unsubPosts();
+      unsubProjects();
       unsubFollowers();
       unsubFollowing();
     };
@@ -180,9 +189,10 @@ export default function ProfileScreen({
               <p className={isFocusMode ? "mt-1 text-sm text-slate-500" : "mt-1 text-sm text-white/60"}>{safeProfile.city || "Location hidden"}</p>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-4">
+            <div className="grid gap-4 sm:grid-cols-5">
               {[
                 { label: "Posts", value: posts.length },
+                { label: "Projects", value: projects.length },
                 { label: "Followers", value: followers.length },
                 { label: "Following", value: following.length },
                 { label: "Saves", value: posts.reduce((sum, post) => sum + Object.keys(post.savedBy ?? {}).length, 0) }
@@ -232,11 +242,12 @@ export default function ProfileScreen({
           {[
             { id: "posts", label: "Posts", icon: Grid3X3 },
             { id: "reels", label: "Reels", icon: PlaySquare },
+            { id: "projects", label: "Projects", icon: Code2 },
           ].map(({ id, label, icon: Icon }) => (
             <button
               key={id}
               type="button"
-              onClick={() => setActiveTab(id as "posts" | "reels")}
+              onClick={() => setActiveTab(id as "posts" | "reels" | "projects")}
               className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm ${
                 activeTab === id
                   ? isFocusMode
@@ -253,7 +264,14 @@ export default function ProfileScreen({
           ))}
         </div>
 
-        {tabbedPosts.length ? (
+        {activeTab === "projects" ? projects.length ? (
+          <div className="grid gap-4 md:grid-cols-2">
+            {projects.map((project) => <Link key={project.id} href={`/hackathon/project/${project.id}`} className={`overflow-hidden rounded-[22px] border transition hover:border-sky-400 ${isFocusMode ? "border-slate-200 bg-white" : "border-white/10 bg-zinc-950"}`}>
+              <div className="flex h-36 items-center justify-center bg-gradient-to-br from-[#1a3653] to-[#49346b]">{project.imageUrls?.[0] ? <img src={project.imageUrls[0]} alt={`${project.title} thumbnail`} className="h-full w-full object-cover" /> : <Code2 className="h-9 w-9 text-sky-300" />}</div>
+              <div className="p-4"><p className="text-xs font-semibold text-sky-500">{project.category || "Student project"}</p><h3 className="mt-1 font-bold">{project.title}</h3><p className={`mt-1 line-clamp-2 text-sm ${isFocusMode ? "text-slate-500" : "text-white/60"}`}>{project.tagline || project.description}</p></div>
+            </Link>)}
+          </div>
+        ) : <div className={`rounded-[24px] border p-8 text-center ${isFocusMode ? "border-slate-200 bg-white" : "border-white/10 bg-zinc-950"}`}><p className="text-lg font-semibold">No projects published yet</p>{isOwnProfile && <Link href="/hackathon" className="mt-2 inline-block text-sm text-sky-500">Publish your first project →</Link>}</div> : tabbedPosts.length ? (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             {tabbedPosts.map((post) => (
               <LumiCard
