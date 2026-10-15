@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ArrowUpRight, Clapperboard, Compass, FlaskConical, Heart, Home, MessageCircleMore, PlusSquare, Sparkles, Trophy, User, Users } from "lucide-react";
+import { Clapperboard, Compass, FlaskConical, Heart, Home, MessageCircleMore, PlusSquare, Trophy, User, Users } from "lucide-react";
 
 const items = [
   { href: "/", label: "Home", icon: Home },
@@ -22,17 +22,11 @@ export default function Sidebar({ isFocusMode = false }: { isFocusMode?: boolean
 
   return (
     <aside
-      className={`sticky top-5 hidden h-[calc(100vh-2.5rem)] flex-col justify-between rounded-[26px] border p-3.5 lg:flex ${
+      className={`sticky top-5 hidden h-[calc(100vh-2.5rem)] rounded-[26px] border p-3.5 lg:block ${
         isFocusMode ? "border-slate-200 bg-white shadow-sm" : "border-white/10 bg-[#0e1525] shadow-2xl shadow-black/20"
       }`}
     >
-      <div>
-        <div className="mb-5 flex items-center gap-2.5 border-b border-current/10 px-3 pb-5 pt-2">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-sky-400 to-violet-500 text-white"><Sparkles className="h-4 w-4" /></span>
-          <div><div className="font-display text-xl font-bold tracking-tight">Lumi</div><p className={`text-[10px] uppercase tracking-[.18em] ${isFocusMode ? "text-slate-500" : "text-slate-400"}`}>Student network</p></div>
-        </div>
-
-        <nav className="space-y-0.5">
+      <nav className="space-y-0.5">
           {items.map(({ href, label, icon: Icon }) => {
             const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
 
@@ -56,14 +50,7 @@ export default function Sidebar({ isFocusMode = false }: { isFocusMode?: boolean
               </Link>
             );
           })}
-        </nav>
-      </div>
-
-      <Link href="/hackathon" className={`group rounded-2xl border p-4 transition hover:-translate-y-0.5 ${isFocusMode ? "border-sky-100 bg-sky-50" : "border-sky-400/15 bg-gradient-to-br from-sky-500/15 to-violet-500/10"}`}>
-        <p className="text-[10px] font-bold uppercase tracking-[.17em] text-sky-400">Build in public</p>
-        <p className="mt-2 text-sm font-semibold">Show what you made.</p>
-        <span className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-sky-400">Explore projects <ArrowUpRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5" /></span>
-      </Link>
+      </nav>
     </aside>
   );
 }
