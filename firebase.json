@@ -2,7 +2,16 @@
   "database": {
     "rules": "database.rules.json"
   },
-  "storage": {
-    "rules": "storage.rules"
+  "auth": {
+    "providers": {
+      "emailPassword": true,
+      "googleSignIn": {
+        "oAuthBrandDisplayName": "Lumi",
+        "supportEmail": "multimax305@gmail.com"
+      }
+    }
+  },
+  "emulators": {
+    "storage": { "port": 9199 }
   }
 }

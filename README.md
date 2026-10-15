@@ -1,16 +1,16 @@
 # Lumi
 
-Lumi is a Next.js social app with Firebase Authentication, Realtime Database, and Storage. The first working social layer includes accounts, profiles, posts, photo stories, video reels, follows, likes, saves, comments, notifications, and direct messages. Content comes from user accounts; the app does not seed fake posts or conversations.
+Lumi is a Next.js social app with Firebase Authentication and Realtime Database. Projects, posts, stories, and avatars use external HTTPS media links, so supported workflows do not require Firebase Storage or billing. Content comes from user accounts; the app does not seed fake posts or conversations.
 
 ## Firebase setup
 
-1. Use Firebase project `lumi-f0d6b` and Realtime Database `https://lumi-f0d6b-default-rtdb.firebaseio.com`. Its currently locked rules reject anonymous reads with HTTP 401.
-2. Enable Firebase Authentication providers for Email/Password and Google. Add the Vercel production domain to Authentication → Settings → Authorized domains.
-3. Create or verify Cloud Storage for Firebase and copy the **exact** bucket name from the new project. Do not reuse the previous project's bucket.
-4. Review and publish [database.rules.json](database.rules.json) in Realtime Database → Rules and [storage.rules](storage.rules) in Storage → Rules. Run `npm run test:rules` locally before publishing.
-5. Copy `.env.example` to `.env.local` and obtain every remaining web app value from the new project's Firebase Console. Firebase web config is public, but server secrets must stay outside `NEXT_PUBLIC_` variables.
+1. Use Firebase project `lumi-f0d6b` and Realtime Database `https://lumi-f0d6b-default-rtdb.firebaseio.com`.
+2. Email/Password and Google providers are enabled with [firebase.json](firebase.json). Verify Google popup sign-in on the production hostname before relying on it.
+3. Keep Cloud Storage unconfigured. Direct uploads are unavailable; use hosted image URLs and creator-hosted YouTube links.
+4. Test [database.rules.json](database.rules.json) with `npm run test:rules` before publishing updates. Storage rules remain in the repository for reference but are not used by the app.
+5. Set the public Firebase web variables in `.env.local` and Vercel. Never put private credentials in `NEXT_PUBLIC_` variables.
 
-The live Vercel project `maxmax/lumi` still needs the **new project's** public Firebase variables for Production and Preview. Update them together, then redeploy; a Git push does not replace stored Vercel environment values.
+The live Vercel project `maxmax/lumi` has the new project's public Firebase variables for Production and Preview. Redeploy after changing them; a Git push does not replace stored Vercel environment values.
 
 See [production setup and verification](docs/SETUP.md) for the required variables, exact Firebase Console steps, and two-account security checks. This app currently stores production records in Realtime Database, not Firestore.
 
@@ -21,7 +21,7 @@ npm install
 npm run dev
 ```
 
-`npm run build` verifies the production bundle. Firebase features require an active database and storage bucket, so build success alone does not prove that posting or messaging works.
+`npm run build` verifies the production bundle. Use `./tests/live-firebase-smoke.ps1` for a temporary real-account publishing and rules check; the script removes its test records and users.
 
 ## Data model
 

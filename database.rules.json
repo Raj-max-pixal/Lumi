@@ -31,6 +31,8 @@
         "$postId": {
           ".write": "auth !== null && !data.exists() && newData.child('authorId').val() === auth.uid",
           ".validate": "newData.hasChildren(['authorId', 'authorName', 'caption', 'createdAt']) && newData.child('authorName').isString() && newData.child('authorName').val().length <= 100 && newData.child('caption').isString() && newData.child('caption').val().length <= 5000 && newData.child('createdAt').isNumber() && (data.exists() ? newData.child('authorId').val() === data.child('authorId').val() : (newData.child('authorId').val() === auth.uid && !newData.child('likedBy').exists() && !newData.child('savedBy').exists() && !newData.child('comments').exists()))",
+          "imageUrl": { ".validate": "newData.isString() && (newData.val() === '' || (newData.val().beginsWith('https://') && newData.val().length <= 2048))" },
+          "videoUrl": { ".validate": "newData.isString() && (newData.val() === '' || (newData.val().beginsWith('https://') && newData.val().length <= 2048))" },
           "likedBy": {
             "$uid": { ".write": "auth !== null && auth.uid === $uid", ".validate": "newData.val() === true" }
           },
@@ -58,6 +60,8 @@
           "description": { ".write": "auth !== null && data.parent().child('authorId').val() === auth.uid && newData.isString()", ".validate": "newData.val().length > 0 && newData.val().length <= 3000" },
           "category": { ".write": "auth !== null && data.parent().child('authorId').val() === auth.uid && newData.isString()", ".validate": "newData.val().length <= 80" },
           "technologies": { ".write": "auth !== null && data.parent().child('authorId').val() === auth.uid" },
+          "imageUrls": { "$index": { ".validate": "newData.isString() && newData.val().beginsWith('https://') && newData.val().length <= 2048" } },
+          "videoUrl": { ".validate": "newData.isString() && (newData.val() === '' || (newData.val().beginsWith('https://') && newData.val().length <= 2048))" },
           "likedBy": {
             "$uid": {
               ".write": "auth !== null && auth.uid === $uid && root.child('hackathon').child('projects').child($projectId).exists()",

@@ -49,6 +49,8 @@ test("posts bind author ID; other users can like and comment without editing aut
   await assertSucceeds(set(databaseRef(database("bob"), "community/posts/p1/comments/c1"), { authorId: "bob", body: "Nice work", createdAt: Date.now() }));
   await assertFails(set(databaseRef(database("bob"), "community/posts/p1/comments/c2"), { authorId: "alice", body: "Forged", createdAt: Date.now() }));
   await assertFails(set(databaseRef(database("bob"), "community/posts/p1/authorName"), "Bob"));
+  await assertSucceeds(set(databaseRef(database("alice"), "community/posts/linked"), { ...post("alice"), imageUrl: "https://example.com/picture.png", videoUrl: "" }));
+  await assertFails(set(databaseRef(database("alice"), "community/posts/unsafe"), { ...post("alice"), imageUrl: "javascript:alert(1)" }));
 });
 
 test("projects permit discovery, owner edits, and scoped reactions", async () => {
@@ -59,6 +61,8 @@ test("projects permit discovery, owner edits, and scoped reactions", async () =>
   await assertFails(update(databaseRef(database("bob"), "hackathon/projects/p1"), { title: "Taken" }));
   await assertSucceeds(update(databaseRef(database("alice"), "hackathon/projects/p1"), { title: "Updated project" }));
   await assertFails(set(databaseRef(database("bob"), "hackathon/projects/p1"), null));
+  await assertSucceeds(set(databaseRef(database("alice"), "hackathon/projects/linked"), { ...project("alice"), websiteUrl: "https://lumi-maxmax.vercel.app/", githubUrl: "https://github.com/Raj-max-pixal/Lumi", imageUrls: ["https://example.com/thumbnail.png"] }));
+  await assertFails(set(databaseRef(database("alice"), "hackathon/projects/unsafe"), { ...project("alice"), imageUrls: ["javascript:alert(1)"] }));
 });
 
 test("team membership requires a genuine pending request and owner approval", async () => {

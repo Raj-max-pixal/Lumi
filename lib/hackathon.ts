@@ -36,10 +36,21 @@ export type HackathonServer = {
 export function isSafeUrl(value: string, github = false) {
   try {
     const parsed = new URL(value);
-    return parsed.protocol === "https:" && (!github || ["github.com", "www.github.com"].includes(parsed.hostname));
+    return value === value.trim() && value.length <= 2048 && parsed.protocol === "https:" && !parsed.username && !parsed.password && (!github || ["github.com", "www.github.com"].includes(parsed.hostname));
   } catch {
     return false;
   }
+}
+
+export function youtubeVideoId(value: string): string | null {
+  if (!isSafeUrl(value)) return null;
+  const url = new URL(value);
+  let id = "";
+  if (url.hostname === "youtu.be") id = url.pathname.slice(1);
+  else if (["youtube.com", "www.youtube.com", "m.youtube.com", "www.youtube-nocookie.com"].includes(url.hostname)) {
+    id = url.pathname === "/watch" ? url.searchParams.get("v") ?? "" : url.pathname.match(/^\/(?:shorts|embed)\/([^/]+)\/?$/)?.[1] ?? "";
+  }
+  return /^[A-Za-z0-9_-]{11}$/.test(id) ? id : null;
 }
 
 export function formatProjectDate(timestamp: number) {

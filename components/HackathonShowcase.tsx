@@ -3,18 +3,16 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { limitToLast, onValue, orderByChild, push, query, ref, set } from "firebase/database";
-import { getDownloadURL, ref as storageRef, uploadBytes } from "firebase/storage";
-import { ArrowRight, ArrowUpRight, BookOpen, Bookmark, Code2, Filter, ImagePlus, Loader2, MessageCircle, Plus, Search, Send, Sparkles, Users, X } from "lucide-react";
+import { ArrowRight, ArrowUpRight, BookOpen, Bookmark, Code2, Filter, Loader2, MessageCircle, Plus, Search, Send, Sparkles, Users, X } from "lucide-react";
 import AuthPanel, { LumiViewer } from "@/components/AuthPanel";
 import { useLumiMode } from "@/components/LumiModeContext";
-import { auth, realtimeDb, storage } from "@/lib/firebase";
+import { auth, realtimeDb } from "@/lib/firebase";
 import { formatProjectDate, HackathonProject, HackathonServer, isSafeUrl, PROJECT_CATEGORIES } from "@/lib/hackathon";
 import { firebaseErrorMessage } from "@/lib/firebase-errors";
-import { uploadFileName, uploadValidationError } from "@/lib/uploads";
 
 const emptyForm = {
   title: "", tagline: "", description: "", category: "Web Development", technologies: "",
-  websiteUrl: "", githubUrl: "", videoUrl: "", hackathonName: "", teamMembers: "", serverId: ""
+  websiteUrl: "", githubUrl: "", thumbnailUrl: "", videoUrl: "", hackathonName: "", teamMembers: "", serverId: ""
 };
 
 export default function HackathonShowcase() {
@@ -31,8 +29,6 @@ export default function HackathonShowcase() {
   const [technology, setTechnology] = useState("All technologies");
   const [sort, setSort] = useState<"newest" | "liked" | "discussed">("newest");
   const [form, setForm] = useState(emptyForm);
-  const [screenshots, setScreenshots] = useState<File[]>([]);
-  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [visibleCount, setVisibleCount] = useState(12);
   const [serverForm, setServerForm] = useState({ name: "", domain: "", details: "" });
   const [selectedServer, setSelectedServer] = useState("");
@@ -50,11 +46,6 @@ export default function HackathonShowcase() {
   const selected = servers.find((server) => server.id === selectedServer);
   const technologies = useMemo(() => [...new Set(projects.flatMap((project) => project.technologies ?? []))].sort().slice(0, 50), [projects]);
 
-  useEffect(() => {
-    const urls = screenshots.map((file) => URL.createObjectURL(file));
-    setImagePreviews(urls);
-    return () => urls.forEach((url) => URL.revokeObjectURL(url));
-  }, [screenshots]);
   useEffect(() => setVisibleCount(12), [search, category, technology, sort, myProjects]);
 
   useEffect(() => {
@@ -80,31 +71,18 @@ export default function HackathonShowcase() {
   }).sort((a, b) => sort === "liked" ? Object.keys(b.likedBy ?? {}).length - Object.keys(a.likedBy ?? {}).length || b.createdAt - a.createdAt : sort === "discussed" ? Object.keys(b.comments ?? {}).length - Object.keys(a.comments ?? {}).length || b.createdAt - a.createdAt : b.createdAt - a.createdAt), [projects, myProjects, viewer?.id, category, technology, search, sort]);
   const featured = useMemo(() => projects.filter((project) => Object.keys(project.likedBy ?? {}).length > 0).sort((a, b) => Object.keys(b.likedBy ?? {}).length - Object.keys(a.likedBy ?? {}).length).slice(0, 3), [projects]);
 
-  function chooseImages(list: FileList | null) {
-    const next = Array.from(list ?? []);
-    if (next.length > 2) { setError("Choose up to two screenshots."); return; }
-    const validation = next.map((file) => uploadValidationError(file, "project")).find(Boolean);
-    if (validation) { setError(validation); return; }
-    setScreenshots(next); setError("");
-  }
-
   async function publish(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (busy) return;
     if (!viewer) { setError("Sign in to publish a project."); return; }
     if (auth.currentUser?.uid !== viewer.id) { setError("Your session changed. Sign in again before publishing."); return; }
-    if (!form.title.trim() || !form.tagline.trim() || !form.technologies.trim() || (form.websiteUrl && !isSafeUrl(form.websiteUrl)) || (form.githubUrl && !isSafeUrl(form.githubUrl, true)) || (form.videoUrl && !isSafeUrl(form.videoUrl))) {
-      setError("Add a title, short description, and technologies. Any links must use HTTPS, and GitHub links must point to GitHub."); return;
+    if (!form.title.trim() || !form.tagline.trim() || !form.technologies.trim() || (form.websiteUrl && !isSafeUrl(form.websiteUrl)) || (form.githubUrl && !isSafeUrl(form.githubUrl, true)) || (form.thumbnailUrl && !isSafeUrl(form.thumbnailUrl)) || (form.videoUrl && !isSafeUrl(form.videoUrl))) {
+      setError("Add a title, short description, and technologies. Links must use HTTPS, and GitHub links must point to GitHub."); return;
     }
     setBusy(true); setError(""); setSuccess("");
     try {
       const nextRef = push(ref(realtimeDb, "hackathon/projects"));
-      const imageUrls: string[] = [];
-      for (const image of screenshots) {
-        const path = storageRef(storage, `hackathon/${viewer.id}/${nextRef.key}/${uploadFileName(image)}`);
-        await uploadBytes(path, image, { contentType: image.type });
-        imageUrls.push(await getDownloadURL(path));
-      }
+      const imageUrls = form.thumbnailUrl.trim() ? [form.thumbnailUrl.trim()] : [];
       await set(nextRef, {
         authorId: viewer.id, authorName: viewer.name, authorAvatar: viewer.avatar,
         title: form.title.trim(), tagline: form.tagline.trim(), description: form.description.trim() || form.tagline.trim(), category: form.category,
@@ -113,7 +91,7 @@ export default function HackathonShowcase() {
         hackathonName: form.hackathonName.trim(), teamMembers: form.teamMembers.split(",").map((item) => item.trim()).filter(Boolean).slice(0, 12),
         serverId: form.serverId, imageUrls, createdAt: Date.now()
       });
-      setForm(emptyForm); setScreenshots([]); setShowPublish(false); setSuccess("Project published to the showcase.");
+      setForm(emptyForm); setShowPublish(false); setSuccess("Project published to the showcase. Lumi saved your links; no files were uploaded.");
     } catch (error) { setError(firebaseErrorMessage(error, "Publishing your project")); }
     finally { setBusy(false); }
   }
@@ -181,12 +159,12 @@ export default function HackathonShowcase() {
               <label className="sm:col-span-2 text-sm font-semibold">Technologies used<input required maxLength={250} className={`mt-1.5 ${input}`} value={form.technologies} onChange={(event) => setForm({ ...form, technologies: event.target.value })} placeholder="React, Firebase, Python (separate with commas)" /></label>
               <label className="text-sm font-semibold">Live website URL <span className={muted}>(optional)</span><input type="url" className={`mt-1.5 ${input}`} value={form.websiteUrl} onChange={(event) => setForm({ ...form, websiteUrl: event.target.value })} placeholder="https://yourproject.com" /></label>
               <label className="text-sm font-semibold">GitHub repository URL <span className={muted}>(optional)</span><input type="url" className={`mt-1.5 ${input}`} value={form.githubUrl} onChange={(event) => setForm({ ...form, githubUrl: event.target.value })} placeholder="https://github.com/you/project" /></label>
+              <label className="sm:col-span-2 text-sm font-semibold">Thumbnail image URL <span className={muted}>(optional)</span><input type="url" maxLength={2048} className={`mt-1.5 ${input}`} value={form.thumbnailUrl} onChange={(event) => setForm({ ...form, thumbnailUrl: event.target.value })} placeholder="https://your-site.com/project-image.png" /><span className={`mt-1 block text-xs font-normal ${muted}`}>Use an image already hosted on your site or GitHub. Direct uploads are unavailable.</span></label>
               <label className="text-sm font-semibold">Demo video URL <span className={muted}>(optional)</span><input type="url" className={`mt-1.5 ${input}`} value={form.videoUrl} onChange={(event) => setForm({ ...form, videoUrl: event.target.value })} placeholder="https://..." /></label>
               <label className="text-sm font-semibold">Hackathon name <span className={muted}>(optional)</span><input maxLength={100} className={`mt-1.5 ${input}`} value={form.hackathonName} onChange={(event) => setForm({ ...form, hackathonName: event.target.value })} placeholder="Event name" /></label>
               <label className="text-sm font-semibold">Team members <span className={muted}>(optional)</span><input maxLength={250} className={`mt-1.5 ${input}`} value={form.teamMembers} onChange={(event) => setForm({ ...form, teamMembers: event.target.value })} placeholder="Names, separated with commas" /></label>
               <label className="text-sm font-semibold">Public server <span className={muted}>(optional)</span><select className={`mt-1.5 ${input}`} value={form.serverId} onChange={(event) => setForm({ ...form, serverId: event.target.value })}><option value="">None</option>{servers.map((server) => <option key={server.id} value={server.id}>{server.name}</option>)}</select></label>
-              <label className={`sm:col-span-2 flex cursor-pointer items-center gap-3 rounded-xl border border-dashed p-4 text-sm ${dark ? "border-white/20" : "border-slate-300"}`}><ImagePlus className="h-5 w-5 text-sky-500" /><span>{screenshots.length ? screenshots.map((file) => file.name).join(", ") : "Add up to 2 screenshots • 5 MB each"}</span><input className="hidden" type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple onChange={(event) => chooseImages(event.target.files)} /></label>
-              {imagePreviews.length > 0 && <div className="sm:col-span-2 grid grid-cols-2 gap-3">{imagePreviews.map((url, index) => <img key={url} src={url} alt={`Screenshot preview ${index + 1}`} className="h-32 w-full rounded-xl object-cover" />)}</div>}
+              {form.thumbnailUrl && isSafeUrl(form.thumbnailUrl) && <img src={form.thumbnailUrl} alt="Project thumbnail preview from your URL" className="h-32 w-full rounded-xl object-cover sm:col-span-2" />}
               <div className={`sm:col-span-2 rounded-xl border p-4 ${dark ? "border-white/10 bg-white/5" : "border-slate-200 bg-slate-50"}`}><p className={`text-xs font-bold uppercase tracking-widest ${muted}`}>Submission preview</p><h3 className="mt-1 font-bold">{form.title || "Your project title"}</h3><p className={`mt-1 text-sm ${muted}`}>{form.tagline || "Your short description appears here."}</p><p className="mt-2 text-xs text-sky-500">{form.category} {form.technologies && `· ${form.technologies}`}</p></div>
               <div className="sm:col-span-2 flex justify-end"><button disabled={busy} className="rounded-full bg-sky-400 px-5 py-3 text-sm font-bold text-slate-950 disabled:opacity-50">{busy ? "Publishing…" : "Publish project"}</button></div>
             </form>
@@ -194,7 +172,7 @@ export default function HackathonShowcase() {
           {featured.length > 0 && !myProjects && !search && category === "All categories" && <section><div className="mb-3 flex items-center gap-2"><Sparkles className="h-4 w-4 text-sky-500" /><h2 className="text-lg font-bold">Community favorites</h2></div><div className="grid gap-3 sm:grid-cols-3">{featured.map((project) => <Link key={project.id} href={`/hackathon/project/${project.id}`} className="rounded-2xl border border-sky-400/20 bg-[#111b30] p-4 text-white transition hover:border-sky-400/60"><p className="text-xs font-semibold text-sky-300">{project.category || "Project"}</p><h3 className="mt-2 line-clamp-1 font-bold">{project.title}</h3><p className="mt-1 line-clamp-2 text-xs text-slate-400">{project.tagline || project.description}</p><span className="mt-3 inline-flex items-center gap-1 text-xs text-sky-300">View project <ArrowRight className="h-3 w-3" /></span></Link>)}</div></section>}
           <div className="flex flex-wrap items-end justify-between gap-3"><div><h2 className="text-xl font-bold">{myProjects ? "My projects" : "Explore projects"}</h2><p className={`mt-0.5 text-sm ${muted}`}>{myProjects ? "Your developer portfolio on Lumi." : "Real ideas from student builders."}</p></div><span className={`text-xs ${muted}`}>{visible.length} shown</span></div>
           <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_170px_160px_150px]"><label className="relative"><Search className={`absolute left-3 top-3 h-4 w-4 ${muted}`} /><input aria-label="Search projects" value={search} onChange={(event) => setSearch(event.target.value)} className={`${input} pl-9`} placeholder="Search projects or technology" /></label><label className="relative"><Filter className={`absolute left-3 top-3 h-4 w-4 ${muted}`} /><select aria-label="Filter by category" className={`${input} pl-9`} value={category} onChange={(event) => setCategory(event.target.value)}><option>All categories</option>{PROJECT_CATEGORIES.map((item) => <option key={item}>{item}</option>)}</select></label><select aria-label="Filter by technology" className={input} value={technology} onChange={(event) => setTechnology(event.target.value)}><option>All technologies</option>{technologies.map((item) => <option key={item}>{item}</option>)}</select><select aria-label="Sort projects" className={input} value={sort} onChange={(event) => setSort(event.target.value as "newest" | "liked" | "discussed")}><option value="newest">Newest</option><option value="liked">Most liked</option><option value="discussed">Most discussed</option></select></div>
-          {loading ? <div className={`rounded-2xl border p-8 ${card}`}><Loader2 className="mx-auto animate-spin text-sky-500" /><p className={`mt-3 text-center text-sm ${muted}`}>Loading projects…</p></div> : visible.length ? <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">{visible.slice(0, visibleCount).map((project) => <article key={project.id} className={`overflow-hidden rounded-[22px] border transition hover:-translate-y-0.5 hover:shadow-lg ${card}`}><div className="flex h-40 items-center justify-center overflow-hidden bg-gradient-to-br from-[#20365b] via-[#293456] to-[#4a2f62]">{project.imageUrls?.[0] ? <img src={project.imageUrls[0]} alt={`${project.title} thumbnail`} className="h-full w-full object-cover" /> : <div className="px-4 text-center"><Code2 className="mx-auto mb-3 h-7 w-7 text-sky-300" /><strong className="line-clamp-2 text-lg uppercase tracking-wide text-white">{project.title}</strong></div>}</div><div className="p-4"><p className="text-xs font-semibold text-sky-500">{project.category || "Student project"}</p><h3 className="mt-1 line-clamp-1 text-base font-bold">{project.title}</h3><p className={`mt-1 line-clamp-2 min-h-10 text-sm leading-5 ${muted}`}>{project.tagline || project.description}</p><div className="mt-3 flex flex-wrap gap-1">{project.technologies?.slice(0, 3).map((tech) => <span key={tech} className={`rounded-full px-2 py-1 text-[11px] ${dark ? "bg-white/10 text-slate-300" : "bg-slate-100 text-slate-600"}`}>{tech}</span>)}</div><div className={`mt-4 flex items-center justify-between border-t pt-3 ${dark ? "border-white/10" : "border-slate-100"}`}><div className="flex min-w-0 items-center gap-2"><img src={project.authorAvatar || `https://api.dicebear.com/9.x/notionists/svg?seed=${encodeURIComponent(project.authorId)}`} alt="" className="h-7 w-7 rounded-full" /><span className={`truncate text-xs ${muted}`}>{project.authorName}</span></div><div className="flex items-center gap-2"><span className={`text-xs ${muted}`}>{Object.keys(project.likedBy ?? {}).length} likes · {Object.keys(project.comments ?? {}).length} comments</span><button type="button" aria-label={project.savedBy?.[viewer?.id ?? ""] ? "Remove bookmark" : "Bookmark project"} onClick={() => void toggleBookmark(project)} className="rounded-full p-1 hover:bg-sky-400/10"><Bookmark className={`h-4 w-4 ${project.savedBy?.[viewer?.id ?? ""] ? "fill-sky-400 text-sky-400" : ""}`} /></button></div></div><p className={`mt-2 text-xs ${muted}`}>Published {formatProjectDate(project.createdAt)}{project.hackathonName ? ` · ${project.hackathonName}` : ""}</p><Link href={`/hackathon/project/${project.id}`} className="mt-3 flex items-center justify-between rounded-xl bg-sky-400 px-3 py-2.5 text-sm font-bold text-slate-950">View project <ArrowUpRight className="h-4 w-4" /></Link></div></article>)}</div> : loadError ? null : <div className={`rounded-2xl border p-10 text-center ${card}`}><BookOpen className="mx-auto h-9 w-9 text-sky-500" /><h3 className="mt-3 font-bold">{myProjects ? "Your portfolio starts here" : "No projects match yet"}</h3><p className={`mt-1 text-sm ${muted}`}>{myProjects ? "Publish a project to show your work." : "Try another search or category."}</p></div>}
+          {loading ? <div className={`rounded-2xl border p-8 ${card}`}><Loader2 className="mx-auto animate-spin text-sky-500" /><p className={`mt-3 text-center text-sm ${muted}`}>Loading projects…</p></div> : visible.length ? <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">{visible.slice(0, visibleCount).map((project) => <article key={project.id} className={`overflow-hidden rounded-[22px] border transition hover:-translate-y-0.5 hover:shadow-lg ${card}`}><div className="flex h-40 items-center justify-center overflow-hidden bg-gradient-to-br from-[#20365b] via-[#293456] to-[#4a2f62]">{isSafeUrl(project.imageUrls?.[0] ?? "") ? <img src={project.imageUrls?.[0]} alt={`${project.title} thumbnail`} className="h-full w-full object-cover" /> : <div className="px-4 text-center"><Code2 className="mx-auto mb-3 h-7 w-7 text-sky-300" /><strong className="line-clamp-2 text-lg uppercase tracking-wide text-white">{project.title}</strong></div>}</div><div className="p-4"><p className="text-xs font-semibold text-sky-500">{project.category || "Student project"}</p><h3 className="mt-1 line-clamp-1 text-base font-bold">{project.title}</h3><p className={`mt-1 line-clamp-2 min-h-10 text-sm leading-5 ${muted}`}>{project.tagline || project.description}</p><div className="mt-3 flex flex-wrap gap-1">{project.technologies?.slice(0, 3).map((tech) => <span key={tech} className={`rounded-full px-2 py-1 text-[11px] ${dark ? "bg-white/10 text-slate-300" : "bg-slate-100 text-slate-600"}`}>{tech}</span>)}</div><div className={`mt-4 flex items-center justify-between border-t pt-3 ${dark ? "border-white/10" : "border-slate-100"}`}><div className="flex min-w-0 items-center gap-2"><img src={project.authorAvatar || `https://api.dicebear.com/9.x/notionists/svg?seed=${encodeURIComponent(project.authorId)}`} alt="" className="h-7 w-7 rounded-full" /><span className={`truncate text-xs ${muted}`}>{project.authorName}</span></div><div className="flex items-center gap-2"><span className={`text-xs ${muted}`}>{Object.keys(project.likedBy ?? {}).length} likes · {Object.keys(project.comments ?? {}).length} comments</span><button type="button" aria-label={project.savedBy?.[viewer?.id ?? ""] ? "Remove bookmark" : "Bookmark project"} onClick={() => void toggleBookmark(project)} className="rounded-full p-1 hover:bg-sky-400/10"><Bookmark className={`h-4 w-4 ${project.savedBy?.[viewer?.id ?? ""] ? "fill-sky-400 text-sky-400" : ""}`} /></button></div></div><p className={`mt-2 text-xs ${muted}`}>Published {formatProjectDate(project.createdAt)}{project.hackathonName ? ` · ${project.hackathonName}` : ""}</p><Link href={`/hackathon/project/${project.id}`} className="mt-3 flex items-center justify-between rounded-xl bg-sky-400 px-3 py-2.5 text-sm font-bold text-slate-950">View project <ArrowUpRight className="h-4 w-4" /></Link></div></article>)}</div> : loadError ? null : <div className={`rounded-2xl border p-10 text-center ${card}`}><BookOpen className="mx-auto h-9 w-9 text-sky-500" /><h3 className="mt-3 font-bold">{myProjects ? "Your portfolio starts here" : "No projects match yet"}</h3><p className={`mt-1 text-sm ${muted}`}>{myProjects ? "Publish a project to show your work." : "Try another search or category."}</p></div>}
           {visible.length > visibleCount && <button type="button" onClick={() => setVisibleCount((count) => count + 12)} className="mx-auto block rounded-full border border-sky-400/30 px-5 py-2.5 text-sm font-bold text-sky-500">Load more projects</button>}
           {!loading && !loadError && !visible.length && !search && category === "All categories" && technology === "All technologies" && <button type="button" onClick={() => setShowPublish(true)} className="mx-auto block rounded-full bg-sky-400 px-5 py-2.5 text-sm font-bold text-slate-950">Publish a project</button>}
         </> : <>

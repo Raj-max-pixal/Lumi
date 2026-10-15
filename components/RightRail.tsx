@@ -82,7 +82,7 @@ export default function RightRail({
           {users.slice(0, 5).map((user) => (
             <div key={user.id} className="flex items-center gap-3">
               <div className="relative h-11 w-11 overflow-hidden rounded-full">
-                <Image src={user.avatar} alt={user.name} fill className="object-cover" />
+                <Image src={user.avatar} alt={user.name} fill unoptimized className="object-cover" />
               </div>
               <div className="min-w-0 flex-1">
                 <Link href={`/profile/${user.id}`} className={`truncate text-sm font-semibold ${isFocusMode ? "text-slate-900" : "text-white"}`}>

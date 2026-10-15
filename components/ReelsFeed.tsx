@@ -79,7 +79,7 @@ export default function ReelsFeed({
 
       <div className="h-[78vh] snap-y snap-mandatory space-y-4 overflow-y-auto pr-1">
         {source === "youtube" && <>
-          <p className="text-xs opacity-65">Short videos about {youtubeTopic}, played from their creators on YouTube. These may include Shorts and other videos under four minutes.</p>
+          <p className="text-xs opacity-65">Developer lessons about {youtubeTopic}, played from their creators on YouTube. Lumi stores only video IDs and labels.</p>
           {youtubeLoading && <p role="status" className="rounded-2xl border border-current/10 p-5 text-sm">Finding developer videos…</p>}
           {youtube?.items.map((item) => <article key={item.id} className={`snap-start overflow-hidden rounded-[24px] border ${isFocusMode ? "border-slate-200 bg-white" : "border-white/10 bg-zinc-950"}`}>
             <div className="p-4"><span className="rounded-full bg-rose-500/15 px-3 py-1 text-xs font-semibold text-rose-500">YouTube</span><h3 className="mt-3 font-semibold">{item.title}</h3><p className="mt-1 text-xs opacity-65">{item.creator}</p></div>
@@ -87,7 +87,7 @@ export default function ReelsFeed({
             <div className="p-4"><p className="line-clamp-3 text-sm opacity-75">{item.description}</p><a href={`https://www.youtube.com/watch?v=${item.videoId}`} target="_blank" rel="noopener noreferrer" className="mt-3 inline-block text-sm font-semibold text-lumi-purple underline">Watch on YouTube ↗</a></div>
           </article>)}
           {youtube?.error && <p role="alert" className="rounded-2xl border border-rose-500/30 p-5 text-sm">{youtube.error}</p>}
-          {youtube && !youtube.configured && <div className="rounded-2xl border border-current/10 p-6 text-sm"><p className="font-semibold">Curated YouTube picks</p><p className="mt-2 opacity-65">These are selected developer lessons. Automatic discovery of new videos starts when the site owner configures a YouTube Data API key.</p></div>}
+          {youtube && !youtube.configured && <div className="rounded-2xl border border-current/10 p-6 text-sm"><p className="font-semibold">Curated YouTube picks</p><p className="mt-2 opacity-65">Selected creator-hosted lessons for each topic. Lumi does not download videos or use a paid discovery API.</p></div>}
           {youtube?.configured && !youtube.error && !youtube.items.length && <p className="rounded-2xl border border-current/10 p-5 text-sm">No embeddable videos found for this topic right now.</p>}
         </>}
         {source === "lumi" && loading && <p role="status" className="rounded-2xl border border-current/10 p-5 text-sm">Loading Lumi Originals…</p>}

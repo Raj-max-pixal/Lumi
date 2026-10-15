@@ -191,7 +191,7 @@ export default function AuthPanel({
       ) : viewer ? (
         <div className="flex items-center gap-3">
           <div className="relative h-12 w-12 overflow-hidden rounded-full">
-            <Image src={viewer.avatar} alt={viewer.name} fill className="object-cover" />
+            <Image src={viewer.avatar} alt={viewer.name} fill unoptimized className="object-cover" />
           </div>
           <div className="min-w-0 flex-1">
             <p className={`truncate font-semibold ${isFocusMode ? "text-slate-900" : "text-white"}`}>{viewer.name}</p>
