@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Search, X } from "lucide-react";
 import LumiCard from "@/components/LumiCard";
@@ -13,16 +13,20 @@ const categories = ["All", "Photos", "Reels", "Threads"] as const;
 export default function ExplorePanel({
   data,
   viewer,
-  isFocusMode = false
+  isFocusMode = false,
+  initialQuery = ""
 }: {
   data: DiscoverPayload;
   viewer: LumiViewer | null;
   isFocusMode?: boolean;
+  initialQuery?: string;
 }) {
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery);
   const [category, setCategory] = useState<(typeof categories)[number]>("All");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
+
+  useEffect(() => setQuery(initialQuery), [initialQuery]);
 
   const filteredFeed = useMemo(() => {
     const trimmed = query.trim().toLowerCase();

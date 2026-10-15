@@ -28,9 +28,9 @@ export type HackathonProject = {
 };
 
 export type HackathonServer = {
-  id: string; name: string; details: string; domain: string; ownerId: string; createdAt: number;
+  id: string; name: string; details: string; domain: string; ownerId: string; ownerName?: string; createdAt: number;
   members?: Record<string, true>;
-  messages?: Record<string, { authorId: string; authorName: string; text: string; createdAt: number }>;
+  messages?: Record<string, { authorId: string; authorName: string; text: string; imageData?: string; createdAt: number }>;
 };
 
 export function isSafeUrl(value: string, github = false) {

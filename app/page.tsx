@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { limitToLast, onValue, orderByChild, query, ref } from "firebase/database";
@@ -30,6 +30,7 @@ const UserSettingsPanel = dynamic(() => import("@/components/UserSettingsPanel")
 export default function HomePage() {
   const { isFocusMode } = useLumiMode();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [discover, setDiscover] = useState<DiscoverPayload | null>(null);
   const [profilesById, setProfilesById] = useState<Record<string, RealtimeProfileRecord>>({});
   const [viewer, setViewer] = useState<LumiViewer | null>(null);
@@ -151,7 +152,7 @@ export default function HomePage() {
     switch (routeView) {
       case "explore":
         return (
-          <ExplorePanel data={data} viewer={viewer} isFocusMode={isFocusMode} />
+          <ExplorePanel data={data} viewer={viewer} isFocusMode={isFocusMode} initialQuery={searchParams.get("tag") ?? ""} />
         );
       case "clips":
         return (

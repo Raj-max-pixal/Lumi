@@ -8,7 +8,7 @@ let environment;
 const projectId = "demo-lumi-rules";
 const profile = (name) => ({ name, avatar: "https://example.com/avatar.png", username: `@${name.toLowerCase()}` });
 const post = (authorId) => ({ authorId, authorName: authorId, caption: "What I learned", createdAt: Date.now() });
-const project = (authorId) => ({ authorId, authorName: authorId, title: "Student project", description: "A useful project", createdAt: Date.now() });
+const project = (authorId) => ({ authorId, authorName: authorId, title: "Student project", description: "A useful project", websiteUrl: "https://example.com", githubUrl: "https://github.com/example/project", imageUrls: ["https://example.com/thumbnail.png"], hackathonName: "Lumi Hackathon", createdAt: Date.now() });
 const team = (ownerId, members = { [ownerId]: true }) => ({ ownerId, ownerName: ownerId, name: "Builders", description: "Learn together", idea: "Build an app", maxMembers: 4, recruiting: true, createdAt: Date.now(), members });
 const server = (ownerId, members = { [ownerId]: true }) => ({ ownerId, name: "Coding server", details: "Discuss projects", domain: "Web Development", createdAt: Date.now(), members });
 const database = (uid) => uid ? environment.authenticatedContext(uid).database() : environment.unauthenticatedContext().database();
@@ -81,8 +81,18 @@ test("servers start with the owner only; members can send their own messages", a
   await assertFails(set(databaseRef(database("alice"), "hackathon/servers/forged"), server("alice", { alice: true, bob: true })));
   await assertSucceeds(set(databaseRef(database("alice"), "hackathon/servers/s1"), server("alice")));
   await assertSucceeds(set(databaseRef(database("bob"), "hackathon/servers/s1/members/bob"), true));
+  await assertSucceeds(set(databaseRef(database("alice"), "hackathon/servers/s1/members/cara"), true));
   await assertSucceeds(set(databaseRef(database("bob"), "hackathon/servers/s1/messages/m1"), { authorId: "bob", authorName: "Bob", text: "Hello", createdAt: Date.now() }));
+  await assertSucceeds(set(databaseRef(database("bob"), "hackathon/servers/s1/messages/m-image"), { authorId: "bob", authorName: "Bob", text: "", imageData: "data:image/jpeg;base64,AA==", createdAt: Date.now() }));
   await assertFails(set(databaseRef(database("eve"), "hackathon/servers/s1/messages/m2"), { authorId: "eve", authorName: "Eve", text: "Hello", createdAt: Date.now() }));
+});
+
+test("stories accept secure image links and size-limited gallery images", async () => {
+  await environment.clearDatabase();
+  const story = (mediaUrl) => ({ authorId: "alice", mediaUrl, createdAt: Date.now(), expiresAt: Date.now() + 60000 });
+  await assertSucceeds(set(databaseRef(database("alice"), "stories/s1"), story("https://example.com/story.jpg")));
+  await assertSucceeds(set(databaseRef(database("alice"), "stories/s2"), story("data:image/jpeg;base64,AA==")));
+  await assertFails(set(databaseRef(database("alice"), "stories/s3"), story("javascript:alert(1)")));
 });
 
 test("direct messages are visible only to participants and require the sender UID", async () => {
