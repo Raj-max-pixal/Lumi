@@ -21,7 +21,7 @@ Optional: `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` (unused by the link-only app) an
 ## Console steps
 
 1. **Realtime Database:** `database.rules.json` is published to the instance above. For later updates, run `npx firebase deploy --only database --project lumi-f0d6b --account multimax305@gmail.com` from the repository. Do not replace it with a root-level public read/write rule.
-2. **Authentication:** `firebase deploy --only auth --project lumi-f0d6b --account multimax305@gmail.com` enabled Email/Password and Google with the Lumi brand and project-owner support email. Verify Google popup sign-in and add `lumi-maxmax.vercel.app` to Authorized domains if necessary. Email/Password registration was tested live.
+2. **Authentication:** `firebase deploy --only auth --project lumi-f0d6b --account multimax305@gmail.com` enabled Email/Password and Google with the Lumi brand and project-owner support email. Firebase Authentication now authorizes `lumi-maxmax.vercel.app`, alongside the default Firebase domains, for Google sign-in. Email/Password registration was tested live.
 3. **Storage:** Leave Cloud Storage unconfigured. Its bucket requires Blaze and the supported Lumi workflows use URLs instead. The retained `storage.rules` are not deployed or needed by the app.
 4. **Vercel:** The new project's seven web config values are set for Production and Preview. Redeploy after any later `NEXT_PUBLIC_` update. A Git push alone will not update an existing deployment's embedded client configuration.
 
