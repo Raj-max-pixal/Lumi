@@ -4,21 +4,47 @@ import { getFirestore } from "firebase/firestore";
 import { getDatabase } from "firebase/database";
 import { getStorage } from "firebase/storage";
 
+// Public Firebase web identifiers only. Admin SDK credentials never belong here.
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY ?? "your-api-key",
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ?? "your-project.firebaseapp.com",
-  databaseURL:
-    process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL ?? "https://your-project-default-rtdb.firebaseio.com",
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ?? "your-project-id",
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ?? "your-project.appspot.com",
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID ?? "1234567890",
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID ?? "1:1234567890:web:abcdef123456",
-  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID ?? "G-ABCDEF1234"
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
 };
 
-const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
+const required = {
+  NEXT_PUBLIC_FIREBASE_API_KEY: firebaseConfig.apiKey,
+  NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: firebaseConfig.authDomain,
+  NEXT_PUBLIC_FIREBASE_DATABASE_URL: firebaseConfig.databaseURL,
+  NEXT_PUBLIC_FIREBASE_PROJECT_ID: firebaseConfig.projectId,
+  NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: firebaseConfig.storageBucket,
+  NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: firebaseConfig.messagingSenderId,
+  NEXT_PUBLIC_FIREBASE_APP_ID: firebaseConfig.appId
+};
+const missing = Object.entries(required)
+  .filter(([, value]) => !value?.trim() || value.startsWith("your-"))
+  .map(([key]) => key);
+if (missing.length) {
+  throw new Error(`Lumi Firebase configuration is missing: ${missing.join(", ")}. Set these public web app variables in .env.local and Vercel, then rebuild.`);
+}
+try {
+  const url = new URL(firebaseConfig.databaseURL!);
+  if (url.protocol !== "https:" || ![".firebasedatabase.app", ".firebaseio.com"].some((suffix) => url.hostname.endsWith(suffix))) throw new Error("invalid endpoint");
+} catch {
+  throw new Error("NEXT_PUBLIC_FIREBASE_DATABASE_URL must be the HTTPS Realtime Database URL from Firebase Console.");
+}
+if (!firebaseConfig.authDomain?.endsWith(".firebaseapp.com") || !firebaseConfig.storageBucket?.match(/^[a-z0-9.-]+\.(appspot\.com|firebasestorage\.app)$/)) {
+  throw new Error("Firebase Auth domain or Storage bucket is invalid. Copy the web app settings from Firebase Console.");
+}
+
+const app = getApps().find((existing: { name: string }) => existing.name === "lumi") ?? initializeApp(firebaseConfig, "lumi");
 
 export const auth = getAuth(app);
+// Retained for compatibility; live app records currently use Realtime Database.
 export const firestore = getFirestore(app);
 export const realtimeDb = getDatabase(app);
 export const storage = getStorage(app);

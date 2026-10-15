@@ -5,11 +5,13 @@ import { useEffect, useState } from "react";
 import { getDownloadURL, ref as storageRef, uploadBytes } from "firebase/storage";
 import { onValue, ref, set } from "firebase/database";
 import { Loader2, Save } from "lucide-react";
-import { realtimeDb, storage } from "@/lib/firebase";
+import { auth, realtimeDb, storage } from "@/lib/firebase";
 import { LumiViewer } from "@/components/AuthPanel";
 import { ensureUserProfile } from "@/lib/social-firebase";
 import { isSafeUrl } from "@/lib/hackathon";
 import { DEVELOPER_TOPICS } from "@/lib/developer-topics";
+import { firebaseErrorMessage } from "@/lib/firebase-errors";
+import { uploadFileName, uploadValidationError } from "@/lib/uploads";
 
 type EditableProfile = {
   name: string;
@@ -90,6 +92,8 @@ export default function EditProfilePanel({
     if (!viewer) {
       return;
     }
+    if (auth.currentUser?.uid !== viewer.id) { setStatus("Your session changed. Sign in again before saving."); return; }
+    if (file) { const validation = uploadValidationError(file, "image"); if (validation) { setStatus(validation); return; } }
     if ([profile.portfolioUrl, profile.githubUrl, profile.linkedinUrl].some((url) => url && !isSafeUrl(url)) || (profile.githubUrl && !isSafeUrl(profile.githubUrl, true)) || (profile.linkedinUrl && !/^https:\/\/(www\.)?linkedin\.com\//i.test(profile.linkedinUrl))) {
       setStatus("Use valid HTTPS portfolio, GitHub, and LinkedIn links.");
       return;
@@ -102,8 +106,8 @@ export default function EditProfilePanel({
       let avatar = profile.avatar;
 
       if (file) {
-        const avatarRef = storageRef(storage, `lumi-profiles/${viewer.id}/${Date.now()}-${file.name}`);
-        await uploadBytes(avatarRef, file);
+        const avatarRef = storageRef(storage, `lumi-profiles/${viewer.id}/${uploadFileName(file)}`);
+        await uploadBytes(avatarRef, file, { contentType: file.type });
         avatar = await getDownloadURL(avatarRef);
       }
 
@@ -130,8 +134,8 @@ export default function EditProfilePanel({
       setProfile((current) => ({ ...current, avatar }));
       setStatus("Profile saved.");
       setFile(null);
-    } catch {
-      setStatus("Unable to save profile. Check Firebase Storage and Database rules.");
+    } catch (error) {
+      setStatus(firebaseErrorMessage(error, "Saving your profile"));
     } finally {
       setIsSaving(false);
     }
@@ -162,7 +166,7 @@ export default function EditProfilePanel({
               }`}
             >
               Upload avatar
-              <input type="file" accept="image/*" className="hidden" onChange={(event) => setFile(event.target.files?.[0] ?? null)} />
+              <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" onChange={(event) => { const selected = event.target.files?.[0] ?? null; const validation = selected && uploadValidationError(selected, "image"); setFile(validation ? null : selected); if (validation) setStatus(validation); }} />
             </label>
           </div>
 

@@ -8,7 +8,9 @@ import { getDownloadURL, ref as storageRef, uploadBytes } from "firebase/storage
 import { Loader2, Plus, X } from "lucide-react";
 import { ChangeEvent, useEffect, useState } from "react";
 import { LumiViewer } from "@/components/AuthPanel";
-import { realtimeDb, storage } from "@/lib/firebase";
+import { auth, realtimeDb, storage } from "@/lib/firebase";
+import { firebaseErrorMessage } from "@/lib/firebase-errors";
+import { uploadFileName, uploadValidationError } from "@/lib/uploads";
 
 type Story = {
   id: string;
@@ -49,14 +51,14 @@ export default function StoriesRail({ viewer, isFocusMode = false }: { viewer: L
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!viewer) return;
-    if (!file?.type.startsWith("image/") || file.size > 15 * 1024 * 1024) {
-      setMessage("Choose an image smaller than 15 MB.");
-      return;
-    }
+    if (!file) return;
+    if (auth.currentUser?.uid !== viewer.id) { setMessage("Your session changed. Sign in again before sharing."); return; }
+    const validation = uploadValidationError(file, "story");
+    if (validation) { setMessage(validation); return; }
     setUploading(true);
     setMessage("");
     try {
-      const asset = storageRef(storage, `stories/${viewer.id}/${Date.now()}-${file.name}`);
+      const asset = storageRef(storage, `stories/${viewer.id}/${uploadFileName(file)}`);
       await uploadBytes(asset, file, { contentType: file.type });
       const mediaUrl = await getDownloadURL(asset);
       const createdAt = Date.now();
@@ -64,8 +66,8 @@ export default function StoriesRail({ viewer, isFocusMode = false }: { viewer: L
         authorId: viewer.id, authorName: viewer.name, authorAvatar: viewer.avatar,
         mediaUrl, createdAt, expiresAt: createdAt + 24 * 60 * 60 * 1000
       });
-    } catch {
-      setMessage("Could not share this story. Check Firebase Database and Storage access.");
+    } catch (error) {
+      setMessage(firebaseErrorMessage(error, "Sharing your story"));
     } finally {
       setUploading(false);
     }
@@ -87,7 +89,7 @@ export default function StoriesRail({ viewer, isFocusMode = false }: { viewer: L
               </span>
             </span>
             <span className="mt-3 block text-center text-xs font-medium">Your story</span>
-            <input type="file" accept="image/*" disabled={!viewer || uploading} onChange={(event) => void addStory(event)} className="hidden" />
+            <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" disabled={!viewer || uploading} onChange={(event) => void addStory(event)} className="hidden" />
           </label>
           {stories.map((story, index) => (
             <button key={story.id} type="button" onClick={() => setActiveStoryIndex(index)} className="min-w-[82px]">

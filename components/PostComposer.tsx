@@ -4,10 +4,12 @@ import { ChangeEvent, FormEvent, useState } from "react";
 import { getDownloadURL, ref as storageRef, uploadBytes } from "firebase/storage";
 import { push, ref, set } from "firebase/database";
 import { ImagePlus, Loader2, Send } from "lucide-react";
-import { realtimeDb, storage } from "@/lib/firebase";
+import { auth, realtimeDb, storage } from "@/lib/firebase";
 import { LumiViewer } from "@/components/AuthPanel";
 import { createNotification } from "@/lib/social-firebase";
 import { DEVELOPER_TOPICS } from "@/lib/developer-topics";
+import { firebaseErrorMessage } from "@/lib/firebase-errors";
+import { uploadFileName, uploadValidationError } from "@/lib/uploads";
 
 export default function PostComposer({
   viewer,
@@ -24,14 +26,8 @@ export default function PostComposer({
 
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const selected = event.target.files?.[0] ?? null;
-    if (selected && !(selected.type.startsWith("image/") || selected.type.startsWith("video/"))) {
-      setStatus("Choose a photo or video file.");
-      return;
-    }
-    if (selected && selected.size > (selected.type.startsWith("video/") ? 50 : 15) * 1024 * 1024) {
-      setStatus("Photos must be under 15 MB and videos under 50 MB.");
-      return;
-    }
+    const validation = selected && uploadValidationError(selected, "post");
+    if (validation) { setFile(null); setStatus(validation); return; }
     setFile(selected);
     setStatus("");
   }
@@ -45,6 +41,8 @@ export default function PostComposer({
       setStatus("Sign in first to post.");
       return;
     }
+    if (auth.currentUser?.uid !== viewer.id) { setStatus("Your session changed. Sign in again before posting."); return; }
+    if (file) { const validation = uploadValidationError(file, "post"); if (validation) { setStatus(validation); return; } }
 
     if (!caption.trim() && !file) {
       setStatus("Add a photo, video, or caption before sharing.");
@@ -61,7 +59,7 @@ export default function PostComposer({
       const isVideo = Boolean(file?.type.startsWith("video/"));
 
       if (file) {
-        const postAssetRef = storageRef(storage, `lumi-posts/${viewer.id}/${Date.now()}-${file.name}`);
+        const postAssetRef = storageRef(storage, `lumi-posts/${viewer.id}/${uploadFileName(file)}`);
         await uploadBytes(postAssetRef, file, { contentType: file.type });
         mediaUrl = await getDownloadURL(postAssetRef);
       }
@@ -95,8 +93,8 @@ export default function PostComposer({
       setFile(null);
       formElement.reset();
       setStatus("Shared.");
-    } catch {
-      setStatus("Unable to share right now. Check Firebase Database and Storage rules.");
+    } catch (error) {
+      setStatus(firebaseErrorMessage(error, "Publishing your post"));
     } finally {
       setIsPosting(false);
     }
@@ -129,7 +127,7 @@ export default function PostComposer({
           >
             <ImagePlus className="h-4 w-4" />
             {file ? file.name.slice(0, 28) : "Upload photo or reel"}
-            <input type="file" accept="image/*,video/*" onChange={handleFileChange} className="hidden" />
+            <input type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm" onChange={handleFileChange} className="hidden" />
           </label>
         </div>
 

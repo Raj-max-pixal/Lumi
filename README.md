@@ -4,13 +4,15 @@ Lumi is a Next.js social app with Firebase Authentication, Realtime Database, an
 
 ## Firebase setup
 
-1. In Firebase project `lumi-fb051`, reactivate the Realtime Database. As of 13 October 2026 the database endpoint returns HTTP 423: `The Firebase database 'lumi-fb051-default-rtdb' has been deactivated.`
+1. In Firebase project `lumi-fb051`, reactivate the Realtime Database. A read-only check on 15 October 2026 returned HTTP 423: `The Firebase database 'lumi-fb051-default-rtdb' has been deactivated.` The response does not disclose the reason for deactivation.
 2. Enable Firebase Authentication providers for Email/Password and Google. Add the Vercel production domain to Authentication → Settings → Authorized domains.
 3. Enable Cloud Storage for Firebase and verify the default bucket is `lumi-fb051.firebasestorage.app`.
 4. Publish [database.rules.json](database.rules.json) in Realtime Database → Rules and [storage.rules](storage.rules) in Storage → Rules. Review the rules for your moderation and privacy requirements before inviting users.
 5. Copy `.env.example` to `.env.local` for local development. Firebase web config is public, but any server secrets must stay outside `NEXT_PUBLIC_` variables.
 
 The live Vercel project `maxmax/lumi` has the public Firebase variables configured for Production and Preview. A new deployment is required after changing public environment variables.
+
+See [production setup and verification](docs/SETUP.md) for the required variables, exact Firebase Console steps, and two-account security checks. This app currently stores production records in Realtime Database, not Firestore.
 
 ## Develop
 

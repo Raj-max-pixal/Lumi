@@ -7,8 +7,10 @@ import { getDownloadURL, ref as storageRef, uploadBytes } from "firebase/storage
 import { ArrowRight, ArrowUpRight, BookOpen, Bookmark, Code2, Filter, ImagePlus, Loader2, MessageCircle, Plus, Search, Send, Sparkles, Users, X } from "lucide-react";
 import AuthPanel, { LumiViewer } from "@/components/AuthPanel";
 import { useLumiMode } from "@/components/LumiModeContext";
-import { realtimeDb, storage } from "@/lib/firebase";
+import { auth, realtimeDb, storage } from "@/lib/firebase";
 import { formatProjectDate, HackathonProject, HackathonServer, isSafeUrl, PROJECT_CATEGORIES } from "@/lib/hackathon";
+import { firebaseErrorMessage } from "@/lib/firebase-errors";
+import { uploadFileName, uploadValidationError } from "@/lib/uploads";
 
 const emptyForm = {
   title: "", tagline: "", description: "", category: "Web Development", technologies: "",
@@ -80,9 +82,9 @@ export default function HackathonShowcase() {
 
   function chooseImages(list: FileList | null) {
     const next = Array.from(list ?? []);
-    if (next.length > 2 || next.some((file) => !file.type.startsWith("image/") || file.size > 5 * 1024 * 1024)) {
-      setError("Choose up to two images, each under 5 MB."); return;
-    }
+    if (next.length > 2) { setError("Choose up to two screenshots."); return; }
+    const validation = next.map((file) => uploadValidationError(file, "project")).find(Boolean);
+    if (validation) { setError(validation); return; }
     setScreenshots(next); setError("");
   }
 
@@ -90,6 +92,7 @@ export default function HackathonShowcase() {
     event.preventDefault();
     if (busy) return;
     if (!viewer) { setError("Sign in to publish a project."); return; }
+    if (auth.currentUser?.uid !== viewer.id) { setError("Your session changed. Sign in again before publishing."); return; }
     if (!form.title.trim() || !form.tagline.trim() || !form.technologies.trim() || (form.websiteUrl && !isSafeUrl(form.websiteUrl)) || (form.githubUrl && !isSafeUrl(form.githubUrl, true)) || (form.videoUrl && !isSafeUrl(form.videoUrl))) {
       setError("Add a title, short description, and technologies. Any links must use HTTPS, and GitHub links must point to GitHub."); return;
     }
@@ -98,7 +101,7 @@ export default function HackathonShowcase() {
       const nextRef = push(ref(realtimeDb, "hackathon/projects"));
       const imageUrls: string[] = [];
       for (const image of screenshots) {
-        const path = storageRef(storage, `hackathon/${viewer.id}/${nextRef.key}/${crypto.randomUUID()}-${image.name.replace(/[^a-z0-9.]/gi, "-")}`);
+        const path = storageRef(storage, `hackathon/${viewer.id}/${nextRef.key}/${uploadFileName(image)}`);
         await uploadBytes(path, image, { contentType: image.type });
         imageUrls.push(await getDownloadURL(path));
       }
@@ -111,7 +114,7 @@ export default function HackathonShowcase() {
         serverId: form.serverId, imageUrls, createdAt: Date.now()
       });
       setForm(emptyForm); setScreenshots([]); setShowPublish(false); setSuccess("Project published to the showcase.");
-    } catch { setError("Publishing failed. Check the Lumi database and storage connection."); }
+    } catch (error) { setError(firebaseErrorMessage(error, "Publishing your project")); }
     finally { setBusy(false); }
   }
 
@@ -163,7 +166,7 @@ export default function HackathonShowcase() {
       <Link href="/team-finder" className={`rounded-xl px-3 py-2.5 text-center text-sm font-semibold ${muted}`}>Find a team</Link>
     </nav>
     {error && <p role="alert" className="rounded-xl border border-rose-300/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-500">{error}</p>}
-    {loadError && <div role="alert" className="rounded-xl border border-rose-300/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-500">{loadError}<button type="button" onClick={() => setRetryKey((key) => key + 1)} className="ml-3 font-bold underline">Retry</button></div>}
+    {loadError && <div role="alert" className="rounded-xl border border-rose-300/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-500">{loadError}<button type="button" onClick={() => setRetryKey((key) => key + 1)} className="ml-3 font-bold underline">Retry</button><Link href="/demo" className="ml-3 font-bold underline">Open fictional demo</Link></div>}
     {success && <p role="status" className="rounded-xl border border-emerald-300/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-600">{success}</p>}
 
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_285px]">
@@ -182,7 +185,7 @@ export default function HackathonShowcase() {
               <label className="text-sm font-semibold">Hackathon name <span className={muted}>(optional)</span><input maxLength={100} className={`mt-1.5 ${input}`} value={form.hackathonName} onChange={(event) => setForm({ ...form, hackathonName: event.target.value })} placeholder="Event name" /></label>
               <label className="text-sm font-semibold">Team members <span className={muted}>(optional)</span><input maxLength={250} className={`mt-1.5 ${input}`} value={form.teamMembers} onChange={(event) => setForm({ ...form, teamMembers: event.target.value })} placeholder="Names, separated with commas" /></label>
               <label className="text-sm font-semibold">Public server <span className={muted}>(optional)</span><select className={`mt-1.5 ${input}`} value={form.serverId} onChange={(event) => setForm({ ...form, serverId: event.target.value })}><option value="">None</option>{servers.map((server) => <option key={server.id} value={server.id}>{server.name}</option>)}</select></label>
-              <label className={`sm:col-span-2 flex cursor-pointer items-center gap-3 rounded-xl border border-dashed p-4 text-sm ${dark ? "border-white/20" : "border-slate-300"}`}><ImagePlus className="h-5 w-5 text-sky-500" /><span>{screenshots.length ? screenshots.map((file) => file.name).join(", ") : "Add up to 2 screenshots • 5 MB each"}</span><input className="hidden" type="file" accept="image/*" multiple onChange={(event) => chooseImages(event.target.files)} /></label>
+              <label className={`sm:col-span-2 flex cursor-pointer items-center gap-3 rounded-xl border border-dashed p-4 text-sm ${dark ? "border-white/20" : "border-slate-300"}`}><ImagePlus className="h-5 w-5 text-sky-500" /><span>{screenshots.length ? screenshots.map((file) => file.name).join(", ") : "Add up to 2 screenshots • 5 MB each"}</span><input className="hidden" type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple onChange={(event) => chooseImages(event.target.files)} /></label>
               {imagePreviews.length > 0 && <div className="sm:col-span-2 grid grid-cols-2 gap-3">{imagePreviews.map((url, index) => <img key={url} src={url} alt={`Screenshot preview ${index + 1}`} className="h-32 w-full rounded-xl object-cover" />)}</div>}
               <div className={`sm:col-span-2 rounded-xl border p-4 ${dark ? "border-white/10 bg-white/5" : "border-slate-200 bg-slate-50"}`}><p className={`text-xs font-bold uppercase tracking-widest ${muted}`}>Submission preview</p><h3 className="mt-1 font-bold">{form.title || "Your project title"}</h3><p className={`mt-1 text-sm ${muted}`}>{form.tagline || "Your short description appears here."}</p><p className="mt-2 text-xs text-sky-500">{form.category} {form.technologies && `· ${form.technologies}`}</p></div>
               <div className="sm:col-span-2 flex justify-end"><button disabled={busy} className="rounded-full bg-sky-400 px-5 py-3 text-sm font-bold text-slate-950 disabled:opacity-50">{busy ? "Publishing…" : "Publish project"}</button></div>

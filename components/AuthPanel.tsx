@@ -2,10 +2,13 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import {
   createUserWithEmailAndPassword,
   GoogleAuthProvider,
   onAuthStateChanged,
+  browserLocalPersistence,
+  setPersistence,
   signInWithEmailAndPassword,
   signInWithPopup,
   signOut,
@@ -14,6 +17,7 @@ import {
 import { Loader2, LogOut } from "lucide-react";
 import { auth } from "@/lib/firebase";
 import { createUserProfileIfMissing, ensureUserProfile } from "@/lib/social-firebase";
+import { firebaseErrorMessage } from "@/lib/firebase-errors";
 
 export type LumiViewer = {
   id: string;
@@ -62,7 +66,7 @@ export default function AuthPanel({
   useEffect(() => {
     const timeout = window.setTimeout(() => {
       setIsLoading(false);
-      setStatus("Auth is taking too long. Preview mode is active.");
+      setStatus("Sign-in is taking too long. You can try again or open the separate demo.");
     }, 10000);
 
     const unsubscribe = onAuthStateChanged(
@@ -72,7 +76,7 @@ export default function AuthPanel({
           setViewer(null);
           onViewerChange(null);
           setIsLoading(false);
-          console.log("Auth loaded");
+          window.clearTimeout(timeout);
           return;
         }
 
@@ -90,20 +94,24 @@ export default function AuthPanel({
             name: nextViewer.name,
             avatar: nextViewer.avatar,
             username: nextViewer.username
-          }).catch(() => setStatus("Signed in, but the database is unavailable."));
+          }).then(() => setStatus("Signed in and ready."))
+            .catch((error: unknown) => setStatus(firebaseErrorMessage(error, "Saving your profile")));
+        } else {
+          setStatus("Signed in. Finish your account profile to publish.");
         }
 
         setViewer(nextViewer);
         onViewerChange(nextViewer);
-        setStatus("Signed in and ready.");
+        if (user.displayName || !user.email) setStatus("Checking your Lumi profile...");
         setIsLoading(false);
-        console.log("Auth loaded");
+        window.clearTimeout(timeout);
       },
-      () => {
+      (error: unknown) => {
         setViewer(null);
         onViewerChange(null);
-        setStatus("Firebase auth is unavailable. Preview mode is active.");
+        setStatus(firebaseErrorMessage(error, "Sign-in"));
         setIsLoading(false);
+        window.clearTimeout(timeout);
       }
     );
 
@@ -118,10 +126,10 @@ export default function AuthPanel({
     setStatus("Opening Google sign-in...");
     try {
       const provider = new GoogleAuthProvider();
+      await setPersistence(auth, browserLocalPersistence);
       await signInWithPopup(auth, provider);
-      setStatus("Google sign-in successful.");
-    } catch {
-      setStatus("Google sign-in failed. Check Firebase Auth provider setup.");
+    } catch (error) {
+      setStatus(firebaseErrorMessage(error, "Google sign-in"));
       setIsLoading(false);
     }
   }
@@ -133,9 +141,12 @@ export default function AuthPanel({
     }
     setIsLoading(true);
     setStatus(creatingAccount ? "Creating account..." : "Signing in...");
+    let accountCreated = false;
     try {
+      await setPersistence(auth, browserLocalPersistence);
       if (creatingAccount) {
         const credential = await createUserWithEmailAndPassword(auth, email.trim(), password);
+        accountCreated = true;
         await updateProfile(credential.user, {
           displayName: displayName.trim(),
           photoURL: buildGuestProfile(credential.user.uid).avatar
@@ -155,19 +166,19 @@ export default function AuthPanel({
         };
         setViewer(nextViewer);
         onViewerChange(nextViewer);
+        setStatus("Signed in and ready.");
       } else {
         await signInWithEmailAndPassword(auth, email.trim(), password);
       }
-      setStatus("Signed in and ready.");
-    } catch {
-      setStatus("Could not sign in. Check your details and Firebase Email/Password setup.");
+    } catch (error) {
+      setStatus(accountCreated ? `Account created, but ${firebaseErrorMessage(error, "Saving your profile").toLowerCase()}` : firebaseErrorMessage(error, creatingAccount ? "Registration" : "Sign-in"));
       setIsLoading(false);
     }
   }
 
   async function handleSignOut() {
-    await signOut(auth);
-    setStatus("Signed out.");
+    try { await signOut(auth); setStatus("Signed out."); }
+    catch (error) { setStatus(firebaseErrorMessage(error, "Sign-out")); }
   }
 
   return (
@@ -219,8 +230,10 @@ export default function AuthPanel({
             </button>
           </div>
           <button type="button" onClick={() => setCreatingAccount((current) => !current)} className="text-sm text-lumi-purple">{creatingAccount ? "Already have an account? Sign in" : "New to Lumi? Create an account"}</button>
+          <p className={isFocusMode ? "text-xs text-slate-500" : "text-xs text-white/55"}>Firebase unavailable? <Link href="/demo" className="font-semibold text-lumi-purple underline">Open the fictional demo</Link>.</p>
         </div>
       )}
+      {viewer && !isLoading && status !== "Signed in and ready." && status !== "Signed out." ? <p role="status" className="mt-3 text-sm text-amber-500">{status}</p> : null}
     </section>
   );
 }
