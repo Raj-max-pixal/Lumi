@@ -4,9 +4,9 @@ Lumi uses Firebase Authentication, **Realtime Database**, and Cloud Storage for 
 
 ## Correct project and current status
 
-The intended Firebase project is `lumi-f0d6b` and its Realtime Database URL is `https://lumi-f0d6b-default-rtdb.firebaseio.com`. On 15 October 2026, an unauthenticated read of that database returned **401 Permission denied**, consistent with the currently locked `{ ".read": false, ".write": false }` rules supplied by the project owner. This is distinct from the previous project's deactivated database response.
+The intended Firebase project is `lumi-f0d6b` and its Realtime Database URL is `https://lumi-f0d6b-default-rtdb.firebaseio.com`. On 16 October 2026, the project owner's Firebase CLI account created the `Lumi Web` app, retrieved its SDK configuration, and published `database.rules.json` to the active Realtime Database. An unauthenticated read of `publicProfiles` returned 200; an unauthenticated read of `privateProfiles` returned 401, as intended.
 
-The Firebase CLI account in this workspace received HTTP **403 Permission denied** when listing web apps in `lumi-f0d6b`. It therefore cannot retrieve the remaining web app settings or publish rules yet. Do not copy API key, Auth domain, sender ID, app ID, or Storage bucket values from the previous project. The project owner must grant suitable access or supply the new project's public web app configuration.
+The verified web configuration is in ignored `.env.local` and the seven matching public Vercel variables for Production and Preview. Cloud Storage rules are **not yet published**: the CLI could not resolve `firebasestorage.googleapis.com`, so its deploy stopped before checking the bucket. Verify the bucket is active and publish `storage.rules` before testing uploads. Authentication providers and authorized domains still need Console verification.
 
 ## Web app configuration
 
@@ -20,10 +20,10 @@ Optional: `NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID`. Server-only optional: `YOUTUBE_
 
 ## Console steps
 
-1. **Realtime Database:** Confirm the instance URL above. Keep its current locked rules until reviewing the repository's `database.rules.json`. Publish that file in Build → Realtime Database → Rules, or grant the CLI account project access and run `npx firebase deploy --only database --project lumi-f0d6b` from the repository. Do not replace it with a root-level public read/write rule.
+1. **Realtime Database:** `database.rules.json` is published to the instance above. For later updates, run `npx firebase deploy --only database --project lumi-f0d6b --account multimax305@gmail.com` from the repository. Do not replace it with a root-level public read/write rule.
 2. **Authentication:** In Build → Authentication → Sign-in method, enable Email/Password and Google. In Authentication → Settings → Authorized domains, add `lumi-maxmax.vercel.app` and any preview domain used for login testing. Configure Google's project support email if Console requests it.
 3. **Storage:** In Build → Storage, create/activate the bucket for `lumi-f0d6b` if none exists. Copy its exact bucket name into `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`; do not infer the suffix. Review and publish the repository's `storage.rules` in Storage → Rules, or run `npx firebase deploy --only storage --project lumi-f0d6b` after CLI access is granted. If Console asks for billing or other activation, complete that exact Console step first.
-4. **Vercel:** Set the new project's web config for Production and Preview. Remove the old project's values only as part of one coordinated update, then redeploy `main`. A Git push alone will not update existing Vercel environment variables.
+4. **Vercel:** The new project's seven web config values are set for Production and Preview. Redeploy after any later `NEXT_PUBLIC_` update. A Git push alone will not update an existing deployment's embedded client configuration.
 
 ## Rules model
 
