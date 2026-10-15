@@ -4,11 +4,12 @@ export type DemoDiscussion = { id: string; authorId: string; body: string; creat
 export type DemoServer = { id: string; name: string; description: string; category: string; rules: string; visibility: "public" | "private"; ownerId: string; moderatorIds: string[]; memberIds: string[]; requestIds: string[]; discussions: DemoDiscussion[]; createdAt: number };
 export type DemoTeam = { id: string; name: string; description: string; idea: string; hackathon: string; skills: string[]; roles: string[]; ownerId: string; memberIds: string[]; requestIds: string[]; capacity: number; recruiting: boolean };
 export type DemoProject = { id: string; title: string; description: string; websiteUrl: string; githubUrl: string; ownerId: string; topic: string };
-export type DemoState = { version: 1; users: DemoUser[]; servers: DemoServer[]; teams: DemoTeam[]; projects: DemoProject[] };
+export type DemoState = { version: 1; users: DemoUser[]; servers: DemoServer[]; teams: DemoTeam[]; projects: DemoProject[]; follows?: Record<string, string[]> };
 
 export const DEMO_KEY = "lumi:demo:v1";
 export const demoSeed: DemoState = {
   version: 1,
+  follows: {},
   users: [
     { id: "raj-demo", name: "Raj Demo", username: "@raj_demo", bio: "Student builder exploring useful AI tools and web apps.", skills: ["React", "Python", "AI"], interests: ["Artificial Intelligence", "Web Development"] },
     { id: "priya-demo", name: "Priya Demo", username: "@priya_demo", bio: "I build mobile experiences for student communities.", skills: ["Flutter", "Firebase", "Dart"], interests: ["Mobile Development"] },
