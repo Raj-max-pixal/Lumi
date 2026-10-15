@@ -23,7 +23,7 @@ export default function StoriesRail({ viewer, isFocusMode = false }: { viewer: L
 
   useEffect(() => onValue(ref(realtimeDb, "stories"), (snapshot: { val: () => unknown }) => {
     const value = snapshot.val() as Record<string, Omit<Story, "id">> | null;
-    setStories(Object.entries(value ?? {}).map(([id, story]) => ({ id, ...story })).filter((story) => isDisplayableImageSource(story.mediaUrl) && story.expiresAt > Date.now()).sort((a, b) => b.createdAt - a.createdAt));
+    setStories(Object.entries(value ?? {}).map(([id, story]) => ({ id, ...story, mediaUrl: normalizeExternalImageUrl(story.mediaUrl) ?? story.mediaUrl })).filter((story) => isDisplayableImageSource(story.mediaUrl) && story.expiresAt > Date.now()).sort((a, b) => b.createdAt - a.createdAt));
   }, () => setMessage("Stories are unavailable. Check the database connection.")), []);
 
   useEffect(() => {
