@@ -12,6 +12,42 @@ type DiscoverableStudent = { id: string; name: string; avatar: string; bio: stri
 type Team = { id: string; ownerId: string; ownerName: string; name: string; description: string; idea: string; hackathonName: string; skills: string[]; roles: string[]; maxMembers: number; recruiting: boolean; createdAt: number; members?: Record<string, true> };
 type JoinRequest = { userId: string; name: string; message: string; status: "pending" | "accepted" | "rejected"; createdAt: number };
 
+function textList(value: unknown, limit: number) {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string").slice(0, limit) : [];
+}
+
+function normaliseTeam(id: string, value: Partial<Team>): Team {
+  return {
+    id,
+    ownerId: typeof value.ownerId === "string" ? value.ownerId : "",
+    ownerName: typeof value.ownerName === "string" ? value.ownerName : "Lumi student",
+    name: typeof value.name === "string" ? value.name : "Untitled team",
+    description: typeof value.description === "string" ? value.description : "",
+    idea: typeof value.idea === "string" ? value.idea : "",
+    hackathonName: typeof value.hackathonName === "string" ? value.hackathonName : "",
+    skills: textList(value.skills, 10),
+    roles: textList(value.roles, 8),
+    maxMembers: typeof value.maxMembers === "number" ? value.maxMembers : 4,
+    recruiting: value.recruiting === true,
+    createdAt: typeof value.createdAt === "number" ? value.createdAt : 0,
+    members: value.members && typeof value.members === "object" ? value.members : {}
+  };
+}
+
+function normaliseStudent(id: string, value: Partial<DiscoverableStudent>): DiscoverableStudent {
+  return {
+    id,
+    name: typeof value.name === "string" ? value.name : "Lumi student",
+    avatar: typeof value.avatar === "string" ? value.avatar : "https://api.dicebear.com/9.x/notionists/svg?seed=LumiStudent",
+    bio: typeof value.bio === "string" ? value.bio : "",
+    skills: textList(value.skills, 12),
+    interests: textList(value.interests, 8),
+    role: typeof value.role === "string" ? value.role : "Student developer",
+    level: typeof value.level === "string" ? value.level : "Beginner",
+    availability: typeof value.availability === "string" ? value.availability : "Open to collaborate"
+  };
+}
+
 export default function TeamFinder() {
   const { isFocusMode } = useLumiMode();
   const [viewer, setViewer] = useState<LumiViewer | null>(null);
@@ -43,10 +79,10 @@ export default function TeamFinder() {
     setLoadError("");
     const timeout = window.setTimeout(() => { setLoading(false); setLoadError("Teams are taking too long to load. Check the Lumi database connection."); }, 10000);
     const unsubscribeTeams = onValue(ref(realtimeDb, "hackathon/teams"), (snapshot: { val: () => Record<string, Omit<Team, "id">> | null }) => {
-      setTeams(Object.entries(snapshot.val() ?? {}).map(([id, value]) => ({ id, ...value })).sort((a, b) => b.createdAt - a.createdAt).slice(0, 60)); window.clearTimeout(timeout); setLoading(false); setLoadError("");
+      setTeams(Object.entries(snapshot.val() ?? {}).map(([id, value]) => normaliseTeam(id, value)).sort((a, b) => b.createdAt - a.createdAt).slice(0, 60)); window.clearTimeout(timeout); setLoading(false); setLoadError("");
     }, () => { window.clearTimeout(timeout); setLoading(false); setLoadError("Teams cannot load until the Lumi database is available."); });
     const unsubscribeStudents = onValue(ref(realtimeDb, "hackathon/discoverableStudents"), (snapshot: { val: () => Record<string, Omit<DiscoverableStudent, "id">> | null }) => {
-      setStudents(Object.entries(snapshot.val() ?? {}).map(([id, value]) => ({ id, ...value })).slice(0, 80));
+      setStudents(Object.entries(snapshot.val() ?? {}).map(([id, value]) => normaliseStudent(id, value)).slice(0, 80));
     }, () => setError("Student cards cannot load until the Lumi database is available."));
     return () => { window.clearTimeout(timeout); unsubscribeTeams(); unsubscribeStudents(); };
   }, [retryKey]);
