@@ -52,8 +52,11 @@ export async function createUserProfileIfMissing(profile: FirebaseProfile) {
 }
 
 export async function createNotification(userId: string, title: string, body: string) {
+  const senderId = auth.currentUser?.uid;
+  if (!senderId) throw new Error("Sign in to create a notification.");
   const notificationRef = push(ref(realtimeDb, `notifications/${userId}`));
   await set(notificationRef, {
+    senderId,
     title,
     body,
     createdAt: Date.now()
@@ -72,6 +75,19 @@ export async function togglePostSave(postId: string, userId: string, saved: bool
   const saveRef = ref(realtimeDb, `community/posts/${postId}/savedBy/${userId}`);
   if (saved) await remove(saveRef);
   else await set(saveRef, true);
+}
+
+export async function addPostComment(args: { postId: string; userId: string; authorName: string; authorHandle: string; body: string }) {
+  requireCurrentUser(args.userId);
+  const body = args.body.trim();
+  if (!body) throw new Error("Write a comment before posting.");
+  await set(push(ref(realtimeDb, `community/posts/${args.postId}/comments`)), {
+    authorId: args.userId,
+    authorName: args.authorName.slice(0, 100),
+    authorHandle: args.authorHandle.slice(0, 100),
+    body: body.slice(0, 1000),
+    createdAt: Date.now()
+  });
 }
 
 export async function toggleFollowUser(args: {

@@ -1,34 +1,36 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { limitToLast, onValue, orderByChild, query, ref } from "firebase/database";
 import { onAuthStateChanged } from "firebase/auth";
-import { Loader2 } from "lucide-react";
 import AuthPanel, { LumiViewer } from "@/components/AuthPanel";
-import AIHub from "@/components/AIHub";
-import ChatWindow from "@/components/ChatWindow";
-import CommunitiesPanel from "@/components/CommunitiesPanel";
 import CommunityFeed from "@/components/CommunityFeed";
-import CreatorAnalyticsPanel from "@/components/CreatorAnalyticsPanel";
-import ExplorePanel from "@/components/ExplorePanel";
 import { useLumiMode } from "@/components/LumiModeContext";
-import MagicWritePanel from "@/components/MagicWritePanel";
 import NotificationsPanel from "@/components/NotificationsPanel";
 import PostComposer from "@/components/PostComposer";
-import ProfileIdentityPanel from "@/components/ProfileIdentityPanel";
-import ProfileScreen from "@/components/ProfileScreen";
-import ReelsFeed from "@/components/ReelsFeed";
 import RightRail from "@/components/RightRail";
 import StoriesRail from "@/components/StoriesRail";
-import UserSettingsPanel from "@/components/UserSettingsPanel";
 import { auth, realtimeDb } from "@/lib/firebase";
 import { buildDiscoverPayloadFromRealtime, DiscoverPayload, RealtimePostRecord, RealtimeProfileRecord } from "@/lib/social";
+
+const AIHub = dynamic(() => import("@/components/AIHub"));
+const ChatWindow = dynamic(() => import("@/components/ChatWindow"));
+const CommunitiesPanel = dynamic(() => import("@/components/CommunitiesPanel"));
+const CreatorAnalyticsPanel = dynamic(() => import("@/components/CreatorAnalyticsPanel"));
+const ExplorePanel = dynamic(() => import("@/components/ExplorePanel"));
+const MagicWritePanel = dynamic(() => import("@/components/MagicWritePanel"));
+const ProfileIdentityPanel = dynamic(() => import("@/components/ProfileIdentityPanel"));
+const ProfileScreen = dynamic(() => import("@/components/ProfileScreen"));
+const ReelsFeed = dynamic(() => import("@/components/ReelsFeed"));
+const UserSettingsPanel = dynamic(() => import("@/components/UserSettingsPanel"));
 
 export default function HomePage() {
   const { isFocusMode } = useLumiMode();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [discover, setDiscover] = useState<DiscoverPayload | null>(null);
   const [profilesById, setProfilesById] = useState<Record<string, RealtimeProfileRecord>>({});
   const [viewer, setViewer] = useState<LumiViewer | null>(null);
@@ -127,17 +129,6 @@ export default function HomePage() {
     };
   }, [retryKey]);
 
-  if (isLoading && pathname !== "/clips") {
-    return (
-      <div className={`flex min-h-[70vh] items-center justify-center rounded-[24px] border ${isFocusMode ? "border-slate-200 bg-white" : "border-white/10 bg-zinc-950"}`}>
-        <div className="text-center">
-          <Loader2 className="mx-auto h-8 w-8 animate-spin text-lumi-purple" />
-          <p className={isFocusMode ? "mt-4 text-sm text-slate-500" : "mt-4 text-sm text-white/60"}>Loading Lumi...</p>
-        </div>
-      </div>
-    );
-  }
-
   const data = discover ?? fallbackPayload;
 
   const routeView =
@@ -161,7 +152,7 @@ export default function HomePage() {
     switch (routeView) {
       case "explore":
         return (
-          <ExplorePanel data={data} viewer={viewer} isFocusMode={isFocusMode} />
+          <ExplorePanel data={data} viewer={viewer} isFocusMode={isFocusMode} initialQuery={searchParams.get("tag") ?? ""} />
         );
       case "clips":
         return (
@@ -246,6 +237,7 @@ export default function HomePage() {
 
   return (
     <div className="space-y-6">
+      {isLoading && pathname !== "/clips" && <p role="status" className={`rounded-xl border px-4 py-2.5 text-xs ${isFocusMode ? "border-slate-200 bg-white text-slate-600" : "border-sky-400/15 bg-sky-400/5 text-sky-200"}`}>Connecting to the Lumi community…</p>}
       {error && pathname !== "/clips" ? (
         <div className={`rounded-[24px] border px-4 py-3 ${isFocusMode ? "border-slate-200 bg-white" : "border-white/10 bg-zinc-950"}`}>
           <p className={isFocusMode ? "text-sm text-slate-600" : "text-sm text-white/70"}>{error} Check the Lumi database connection, then retry.</p>

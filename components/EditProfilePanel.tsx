@@ -2,16 +2,14 @@
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
-import { getDownloadURL, ref as storageRef, uploadBytes } from "firebase/storage";
 import { onValue, ref, set } from "firebase/database";
 import { Loader2, Save } from "lucide-react";
-import { auth, realtimeDb, storage } from "@/lib/firebase";
+import { auth, realtimeDb } from "@/lib/firebase";
 import { LumiViewer } from "@/components/AuthPanel";
 import { ensureUserProfile } from "@/lib/social-firebase";
 import { isSafeUrl } from "@/lib/hackathon";
 import { DEVELOPER_TOPICS } from "@/lib/developer-topics";
 import { firebaseErrorMessage } from "@/lib/firebase-errors";
-import { uploadFileName, uploadValidationError } from "@/lib/uploads";
 
 type EditableProfile = {
   name: string;
@@ -47,7 +45,6 @@ export default function EditProfilePanel({
     githubUrl: "",
     linkedinUrl: ""
   });
-  const [file, setFile] = useState<File | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [status, setStatus] = useState("Load your profile to edit it.");
   const [loadFailed, setLoadFailed] = useState(false);
@@ -93,9 +90,8 @@ export default function EditProfilePanel({
       return;
     }
     if (auth.currentUser?.uid !== viewer.id) { setStatus("Your session changed. Sign in again before saving."); return; }
-    if (file) { const validation = uploadValidationError(file, "image"); if (validation) { setStatus(validation); return; } }
-    if ([profile.portfolioUrl, profile.githubUrl, profile.linkedinUrl].some((url) => url && !isSafeUrl(url)) || (profile.githubUrl && !isSafeUrl(profile.githubUrl, true)) || (profile.linkedinUrl && !/^https:\/\/(www\.)?linkedin\.com\//i.test(profile.linkedinUrl))) {
-      setStatus("Use valid HTTPS portfolio, GitHub, and LinkedIn links.");
+    if ([profile.avatar, profile.portfolioUrl, profile.githubUrl, profile.linkedinUrl].some((url) => url && !isSafeUrl(url)) || (profile.githubUrl && !isSafeUrl(profile.githubUrl, true)) || (profile.linkedinUrl && !/^https:\/\/(www\.)?linkedin\.com\//i.test(profile.linkedinUrl))) {
+      setStatus("Use valid HTTPS avatar, portfolio, GitHub, and LinkedIn links.");
       return;
     }
 
@@ -103,13 +99,7 @@ export default function EditProfilePanel({
     setStatus("");
 
     try {
-      let avatar = profile.avatar;
-
-      if (file) {
-        const avatarRef = storageRef(storage, `lumi-profiles/${viewer.id}/${uploadFileName(file)}`);
-        await uploadBytes(avatarRef, file, { contentType: file.type });
-        avatar = await getDownloadURL(avatarRef);
-      }
+      const avatar = profile.avatar.trim() || viewer.avatar;
 
       await set(ref(realtimeDb, `privateProfiles/${viewer.id}/city`), profile.city.trim());
       await ensureUserProfile({
@@ -133,7 +123,6 @@ export default function EditProfilePanel({
 
       setProfile((current) => ({ ...current, avatar }));
       setStatus("Profile saved.");
-      setFile(null);
     } catch (error) {
       setStatus(firebaseErrorMessage(error, "Saving your profile"));
     } finally {
@@ -158,16 +147,9 @@ export default function EditProfilePanel({
         <div className="space-y-4">
           <div className="flex items-center gap-4">
             <div className="relative h-16 w-16 overflow-hidden rounded-[24px]">
-              <Image src={profile.avatar || viewer.avatar} alt={profile.name || viewer.name} fill className="object-cover" />
+              <Image src={isSafeUrl(profile.avatar) ? profile.avatar : viewer.avatar} alt={profile.name || viewer.name} fill unoptimized className="object-cover" />
             </div>
-            <label
-              className={`rounded-full border px-4 py-2 text-sm ${
-                isFocusMode ? "border-slate-200 bg-slate-50 text-slate-700" : "border-white/10 bg-black/20 text-white/80"
-              }`}
-            >
-              Upload avatar
-              <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" onChange={(event) => { const selected = event.target.files?.[0] ?? null; const validation = selected && uploadValidationError(selected, "image"); setFile(validation ? null : selected); if (validation) setStatus(validation); }} />
-            </label>
+            <label className="min-w-0 flex-1 text-sm">Avatar image URL<input type="url" maxLength={2048} value={profile.avatar} onChange={(event) => setProfile((current) => ({ ...current, avatar: event.target.value }))} placeholder="https://your-site.com/avatar.png" className={`mt-1 w-full rounded-xl border px-3 py-2 text-sm ${isFocusMode ? "border-slate-200 bg-slate-50 text-slate-900" : "border-white/10 bg-black/20 text-white"}`} /><span className="mt-1 block text-xs opacity-60">Direct uploads are unavailable. Use an image hosted elsewhere.</span></label>
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">

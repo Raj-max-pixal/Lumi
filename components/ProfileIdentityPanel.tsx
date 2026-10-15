@@ -19,7 +19,7 @@ export default function ProfileIdentityPanel({
     >
       <div className="mb-5 flex items-center gap-4">
         <div className="relative h-16 w-16 overflow-hidden rounded-[24px]">
-          <Image src={viewer?.avatar ?? "https://api.dicebear.com/9.x/notionists/svg?seed=LumiProfile"} alt={viewer?.name ?? "Lumi"} fill className="object-cover" />
+          <Image src={viewer?.avatar ?? "https://api.dicebear.com/9.x/notionists/svg?seed=LumiProfile"} alt={viewer?.name ?? "Lumi"} fill unoptimized className="object-cover" />
         </div>
         <div>
           <p className={`font-display text-2xl font-semibold ${isFocusMode ? "text-slate-900" : "text-white"}`}>{viewer?.name ?? "Lumi Identity"}</p>

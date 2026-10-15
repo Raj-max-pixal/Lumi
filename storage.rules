@@ -3,7 +3,7 @@ service firebase.storage {
   match /b/{bucket}/o {
     match /lumi-posts/{userId}/{fileName} {
       allow read: if true;
-      allow create: if request.auth != null && request.auth.uid == userId
+      allow write: if resource == null && request.auth != null && request.auth.uid == userId
         && ((request.resource.size > 0 && request.resource.size < 15 * 1024 * 1024
           && request.resource.contentType.matches('image/(jpeg|png|webp|gif)'))
           || (request.resource.size > 0 && request.resource.size < 50 * 1024 * 1024
@@ -11,19 +11,19 @@ service firebase.storage {
     }
     match /stories/{userId}/{fileName} {
       allow read: if true;
-      allow create: if request.auth != null && request.auth.uid == userId
+      allow write: if resource == null && request.auth != null && request.auth.uid == userId
         && request.resource.size > 0 && request.resource.size < 15 * 1024 * 1024
         && request.resource.contentType.matches('image/(jpeg|png|webp|gif)');
     }
     match /lumi-profiles/{userId}/{fileName} {
       allow read: if true;
-      allow create: if request.auth != null && request.auth.uid == userId
+      allow write: if resource == null && request.auth != null && request.auth.uid == userId
         && request.resource.size > 0 && request.resource.size < 15 * 1024 * 1024
         && request.resource.contentType.matches('image/(jpeg|png|webp|gif)');
     }
     match /hackathon/{userId}/{projectId}/{fileName} {
       allow read: if true;
-      allow create: if request.auth != null && request.auth.uid == userId
+      allow write: if resource == null && request.auth != null && request.auth.uid == userId
         && request.resource.size > 0 && request.resource.size < 5 * 1024 * 1024
         && request.resource.contentType.matches('image/(jpeg|png|webp|gif)');
     }

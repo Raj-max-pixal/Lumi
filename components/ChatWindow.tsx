@@ -24,18 +24,19 @@ export default function ChatWindow({ viewer, isFocusMode = false }: { viewer: Lu
     if (!viewer) return;
     setStatus("");
     const nextRoomId = [viewer.id, personId].sort().join("_");
-    const participantsRef = ref(realtimeDb, `directMessages/${nextRoomId}/participants`);
+    const roomRef = ref(realtimeDb, `directMessages/${nextRoomId}`);
     try {
-      await set(participantsRef, {
-        [viewer.id]: true,
-        [personId]: true
+      await set(roomRef, {
+        creatorId: viewer.id,
+        peerId: personId,
+        participants: { [viewer.id]: true, [personId]: true }
       });
       setTargetId(personId);
     } catch {
       // An existing room is immutable. Its members can still read it.
       try {
-        const existing = await get(participantsRef);
-        if (!existing.child(viewer.id).exists() || !existing.child(personId).exists()) throw new Error("Not a participant");
+        const existing = await get(roomRef);
+        if (!existing.child(`participants/${viewer.id}`).exists() || !existing.child(`participants/${personId}`).exists()) throw new Error("Not a participant");
         setTargetId(personId);
       } catch {
         setStatus("Could not open this conversation. Check Firebase access.");
@@ -102,7 +103,7 @@ export default function ChatWindow({ viewer, isFocusMode = false }: { viewer: Lu
         <div className="flex gap-2 overflow-x-auto md:block md:space-y-1">
           {people.map((person) => (
             <button key={person.id} type="button" onClick={() => void selectPerson(person.id)} className={`flex min-w-[180px] items-center gap-3 rounded-xl p-2 text-left md:w-full ${targetId === person.id ? "bg-lumi-purple/15" : "hover:bg-slate-500/10"}`}>
-              <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full"><Image src={person.avatar} alt="" fill sizes="40px" className="object-cover" /></span>
+              <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full"><Image src={person.avatar} alt="" fill unoptimized sizes="40px" className="object-cover" /></span>
               <span className="min-w-0"><span className="block truncate text-sm font-semibold">{person.name}</span><span className="block truncate text-xs opacity-60">{person.username ?? `@${person.id.slice(0, 8)}`}</span></span>
             </button>
           ))}

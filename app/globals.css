@@ -7,6 +7,10 @@
   --font-display: "Segoe UI", Arial, sans-serif;
 }
 
+.lumi-dark {
+  background-image: radial-gradient(circle at 55% -15%, rgba(42, 119, 184, 0.14), transparent 36%), radial-gradient(circle at 100% 24%, rgba(103, 61, 183, 0.1), transparent 31%);
+}
+
 html {
   scroll-behavior: smooth;
 }

@@ -18,7 +18,7 @@ export default function MobileBottomNav({ isFocusMode = false }: { isFocusMode?:
   return (
     <nav
       className={`fixed inset-x-0 bottom-0 z-40 border-t px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 lg:hidden ${
-        isFocusMode ? "border-slate-200 bg-white/95" : "border-white/10 bg-zinc-950/95"
+        isFocusMode ? "border-slate-200 bg-white/95" : "border-white/10 bg-[#0e1525]/95"
       } backdrop-blur-xl`}
     >
       <div className="mx-auto grid max-w-md grid-cols-5 gap-2">
@@ -31,7 +31,7 @@ export default function MobileBottomNav({ isFocusMode = false }: { isFocusMode?:
               href={href}
               className={`flex flex-col items-center gap-1 rounded-2xl px-2 py-2 text-[11px] transition ${
                 active
-                  ? "text-lumi-purple"
+                  ? "text-sky-400"
                   : isFocusMode
                     ? "text-slate-500"
                     : "text-white/60"
@@ -45,7 +45,7 @@ export default function MobileBottomNav({ isFocusMode = false }: { isFocusMode?:
       </div>
       <Link
         href="/chat"
-        className="absolute right-5 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-lumi-purple text-white shadow-lg shadow-lumi-purple/30"
+        className="absolute right-5 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-sky-400 text-slate-950 shadow-lg shadow-sky-400/20"
       >
         <MessageCircleMore className="h-5 w-5" />
       </Link>

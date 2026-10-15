@@ -82,7 +82,7 @@ export default function RightRail({
           {users.slice(0, 5).map((user) => (
             <div key={user.id} className="flex items-center gap-3">
               <div className="relative h-11 w-11 overflow-hidden rounded-full">
-                <Image src={user.avatar} alt={user.name} fill className="object-cover" />
+                <Image src={user.avatar} alt={user.name} fill unoptimized className="object-cover" />
               </div>
               <div className="min-w-0 flex-1">
                 <Link href={`/profile/${user.id}`} className={`truncate text-sm font-semibold ${isFocusMode ? "text-slate-900" : "text-white"}`}>
@@ -123,10 +123,10 @@ export default function RightRail({
         </div>
         <div className="space-y-3">
           {trending.slice(0, 4).map((topic) => (
-            <div key={topic.id}>
+            <Link key={topic.id} href={`/explore?tag=${encodeURIComponent(topic.label)}`} className="block rounded-xl px-2 py-1 transition hover:bg-sky-400/10">
               <p className={`text-sm font-semibold ${isFocusMode ? "text-slate-900" : "text-white"}`}>{topic.label}</p>
               <p className={isFocusMode ? "text-xs text-slate-500" : "text-xs text-white/55"}>{topic.posts}</p>
-            </div>
+            </Link>
           ))}
         </div>
         <div className={`mt-5 border-t pt-4 ${isFocusMode ? "border-slate-200 text-slate-500" : "border-white/10 text-white/55"}`}>

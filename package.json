@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "test:rules": "firebase emulators:exec --only database,storage --project demo-lumi-rules \"node --test tests/firebase-rules.test.mjs\"",
     "start": "next start",
     "lint": "next lint"
   },
@@ -17,10 +18,12 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "^4.0.1",
     "@types/node": "^22.14.1",
     "@types/react": "^19.0.12",
     "@types/react-dom": "^19.0.4",
     "autoprefixer": "^10.4.21",
+    "firebase-tools": "^15.34.0",
     "postcss": "^8.5.3",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.8.3"

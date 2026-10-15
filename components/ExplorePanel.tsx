@@ -1,28 +1,34 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Search, X } from "lucide-react";
 import LumiCard from "@/components/LumiCard";
 import { DiscoverPayload, FeedItem } from "@/lib/social";
 import { LumiViewer } from "@/components/AuthPanel";
-import { togglePostLike, togglePostSave } from "@/lib/social-firebase";
+import { addPostComment, togglePostLike, togglePostSave } from "@/lib/social-firebase";
 
 const categories = ["All", "Photos", "Reels", "Threads"] as const;
 
 export default function ExplorePanel({
   data,
   viewer,
-  isFocusMode = false
+  isFocusMode = false,
+  initialQuery = ""
 }: {
   data: DiscoverPayload;
   viewer: LumiViewer | null;
   isFocusMode?: boolean;
+  initialQuery?: string;
 }) {
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery);
   const [category, setCategory] = useState<(typeof categories)[number]>("All");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
+  const [commentDraft, setCommentDraft] = useState("");
+  const [commentBusy, setCommentBusy] = useState(false);
+
+  useEffect(() => setQuery(initialQuery), [initialQuery]);
 
   const filteredFeed = useMemo(() => {
     const trimmed = query.trim().toLowerCase();
@@ -68,6 +74,19 @@ export default function ExplorePanel({
     } catch {
       setMessage("Could not save this post. Check Firebase access.");
     }
+  }
+
+  async function submitComment(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selectedItem) return;
+    if (!viewer) return setMessage("Sign in to comment on this post.");
+    setCommentBusy(true);
+    try {
+      await addPostComment({ postId: selectedItem.id, userId: viewer.id, authorName: viewer.name, authorHandle: viewer.username || `@${viewer.id.slice(0, 8)}`, body: commentDraft });
+      setCommentDraft("");
+      setMessage("");
+    } catch (error) { setMessage(error instanceof Error ? error.message : "Could not post your comment."); }
+    finally { setCommentBusy(false); }
   }
 
   function DetailCard({ item }: { item: FeedItem }) {
@@ -184,6 +203,10 @@ export default function ExplorePanel({
               </div>
 
               <DetailCard item={selectedItem} />
+              <form onSubmit={(event) => void submitComment(event)} className={`mt-4 flex gap-2 rounded-2xl border p-3 ${isFocusMode ? "border-slate-200" : "border-white/10"}`}>
+                <input value={commentDraft} onChange={(event) => setCommentDraft(event.target.value)} maxLength={1000} disabled={!viewer || commentBusy} placeholder={viewer ? "Write a thoughtful comment…" : "Sign in to comment"} className={`min-w-0 flex-1 bg-transparent text-sm outline-none ${isFocusMode ? "text-slate-900 placeholder:text-slate-400" : "text-white placeholder:text-white/40"}`} />
+                <button disabled={!viewer || !commentDraft.trim() || commentBusy} className="rounded-xl bg-lumi-purple px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{commentBusy ? "Posting…" : "Comment"}</button>
+              </form>
             </motion.div>
           </motion.div>
         ) : null}

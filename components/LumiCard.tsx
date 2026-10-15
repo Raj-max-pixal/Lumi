@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { isSafeUrl, youtubeVideoId } from "@/lib/hackathon";
 import { motion } from "framer-motion";
 import { Bookmark, Heart, MessageCircle, MoreHorizontal, Play, Send } from "lucide-react";
 import { useState } from "react";
@@ -46,7 +47,7 @@ function NestedComments({ nodes, isFocusMode = false, depth = 0 }: { nodes: Feed
             <div className="flex items-center gap-3">
               {comment.avatar ? (
                 <div className="relative h-9 w-9 overflow-hidden rounded-full">
-                  <Image src={comment.avatar} alt={comment.author} fill className="object-cover" />
+                  <Image src={comment.avatar} alt={comment.author} fill unoptimized className="object-cover" />
                 </div>
               ) : null}
               <div>
@@ -112,7 +113,7 @@ export default function LumiCard({
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="relative h-10 w-10 overflow-hidden rounded-full">
-              <Image src={avatarUrl} alt={author} fill className="object-cover" />
+              <Image src={avatarUrl} alt={author} fill unoptimized className="object-cover" />
             </div>
             <div>
               <p className="text-sm font-semibold">{author}</p>
@@ -125,7 +126,7 @@ export default function LumiCard({
 
       {contentType === "video" ? (
         <div className="relative aspect-[4/5] overflow-hidden border-y border-current/10">
-          <video className="h-full w-full bg-black object-contain" src={videoUrl} controls playsInline preload="metadata" aria-label={title} />
+          {youtubeVideoId(videoUrl) ? <iframe title={title} src={`https://www.youtube-nocookie.com/embed/${youtubeVideoId(videoUrl)}`} className="h-full w-full bg-black" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen referrerPolicy="strict-origin-when-cross-origin" /> : isSafeUrl(videoUrl) ? <video className="h-full w-full bg-black object-contain" src={videoUrl} controls playsInline preload="metadata" aria-label={title} /> : null}
           <div className="pointer-events-none absolute bottom-4 left-4 flex items-center gap-2 rounded-full bg-black/45 px-3 py-1 text-xs text-white">
             <Play className="h-3.5 w-3.5 fill-current" />
             Reel
@@ -135,7 +136,7 @@ export default function LumiCard({
 
       {contentType === "image" ? (
         <div className="relative aspect-[4/5] overflow-hidden border-y border-current/10" onDoubleClick={triggerHeartBurst}>
-          <Image src={imageUrl} alt={title} fill sizes="(max-width: 640px) 100vw, 640px" className="object-cover" />
+          {isSafeUrl(imageUrl) && <Image src={imageUrl} alt={title} fill unoptimized sizes="(max-width: 640px) 100vw, 640px" className="object-cover" />}
           {showHeartBurst ? (
             <motion.div
               initial={{ opacity: 0, scale: 0.6 }}
