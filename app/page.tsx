@@ -165,7 +165,7 @@ export default function HomePage() {
       case "clips":
         return (
           <div className="mx-auto max-w-xl">
-            <ReelsFeed feed={data.feed} viewer={viewer} interests={viewer ? profilesById[viewer.id]?.interests ?? [] : []} loadError={error} isFocusMode={isFocusMode} />
+            <ReelsFeed feed={data.feed} viewer={viewer} interests={viewer ? profilesById[viewer.id]?.interests ?? [] : []} loadError={error} loading={isLoading} onRetry={() => setRetryKey((key) => key + 1)} isFocusMode={isFocusMode} />
           </div>
         );
       case "following":
@@ -245,7 +245,7 @@ export default function HomePage() {
 
   return (
     <div className="space-y-6">
-      {error ? (
+      {error && pathname !== "/clips" ? (
         <div className={`rounded-[24px] border px-4 py-3 ${isFocusMode ? "border-slate-200 bg-white" : "border-white/10 bg-zinc-950"}`}>
           <p className={isFocusMode ? "text-sm text-slate-600" : "text-sm text-white/70"}>{error} Check the Lumi database connection, then retry.</p>
           <button type="button" onClick={() => setRetryKey((key) => key + 1)} className="mt-2 rounded-full bg-lumi-purple px-4 py-1.5 text-sm font-semibold text-white">Retry loading</button>

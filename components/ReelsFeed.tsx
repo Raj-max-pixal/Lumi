@@ -14,12 +14,16 @@ export default function ReelsFeed({
   viewer,
   interests,
   loadError = "",
+  loading = false,
+  onRetry,
   isFocusMode = false
 }: {
   feed: DiscoverPayload["feed"];
   viewer: LumiViewer | null;
   interests: string[];
   loadError?: string;
+  loading?: boolean;
+  onRetry?: () => void;
   isFocusMode?: boolean;
 }) {
   const [view, setView] = useState<"for-you" | "all">("for-you");
@@ -86,6 +90,8 @@ export default function ReelsFeed({
           {youtube && !youtube.configured && <div className="rounded-2xl border border-current/10 p-6 text-sm"><p className="font-semibold">Curated YouTube picks</p><p className="mt-2 opacity-65">These are selected developer lessons. Automatic discovery of new videos starts when the site owner configures a YouTube Data API key.</p></div>}
           {youtube?.configured && !youtube.error && !youtube.items.length && <p className="rounded-2xl border border-current/10 p-5 text-sm">No embeddable videos found for this topic right now.</p>}
         </>}
+        {source === "lumi" && loading && <p role="status" className="rounded-2xl border border-current/10 p-5 text-sm">Loading Lumi Originals…</p>}
+        {source === "lumi" && loadError && <div role="alert" className="rounded-2xl border border-rose-500/30 p-5 text-sm"><p>{loadError} Check the Lumi database connection.</p>{onRetry && <button type="button" onClick={onRetry} className="mt-2 font-semibold text-lumi-purple underline">Retry loading</button>}</div>}
         {source === "lumi" && reels.map((item) => (
           <div key={item.id} className="snap-start">
             <LumiCard
@@ -108,7 +114,7 @@ export default function ReelsFeed({
             />
           </div>
         ))}
-        {source === "lumi" && !reels.length && !loadError ? <div className="rounded-[24px] border border-current/10 p-8 text-center text-sm"><p>{topic ? `No ${topic} reels yet.` : view === "for-you" && preferredTopics.length ? "No reels match your interests yet." : "No developer reels yet."}</p><p className="mt-2 opacity-65">{view === "for-you" && preferredTopics.length ? "Explore all topics or share a reel about what you are building." : "Share a short project demo or tutorial to start the feed."}</p>{view === "for-you" && preferredTopics.length && <button type="button" onClick={() => setView("all")} className="mt-3 rounded-full bg-lumi-purple px-4 py-2 font-semibold text-white">Explore all reels</button>}</div> : null}
+        {source === "lumi" && !reels.length && !loadError && !loading ? <div className="rounded-[24px] border border-current/10 p-8 text-center text-sm"><p>{topic ? `No ${topic} reels yet.` : view === "for-you" && preferredTopics.length ? "No reels match your interests yet." : "No developer reels yet."}</p><p className="mt-2 opacity-65">{view === "for-you" && preferredTopics.length ? "Explore all topics or share a reel about what you are building." : "Share a short project demo or tutorial to start the feed."}</p>{view === "for-you" && preferredTopics.length && <button type="button" onClick={() => setView("all")} className="mt-3 rounded-full bg-lumi-purple px-4 py-2 font-semibold text-white">Explore all reels</button>}</div> : null}
       </div>
     </div>
   );
