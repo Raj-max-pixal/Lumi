@@ -1,35 +1,44 @@
-# Lumi production setup
+# Lumi Firebase setup
 
-Lumi currently uses Firebase Authentication, **Realtime Database**, and Cloud Storage for Firebase. Firestore is initialized for compatibility but no production collection reads or writes use it. The separate `/demo` route uses browser localStorage and fictional records only.
+Lumi uses Firebase Authentication, **Realtime Database**, and Cloud Storage for Firebase. The app currently has no Firestore record reads or writes. The separate `/demo` route uses fictional browser-local data only.
 
-## Observed blocker (15 October 2026)
+## Correct project and current status
 
-An unauthenticated read-only request to `https://lumi-fb051-default-rtdb.firebaseio.com/.json?shallow=true` returned HTTP **423 Locked** with the Firebase response `The Firebase database 'lumi-fb051-default-rtdb' has been deactivated.` This response comes from the Realtime Database service, before app security rules can grant or deny a record. It explains failed shared reads/writes. The response does **not** say why Firebase deactivated the instance; inspect the project status, billing, quota, and any Firebase notices in Console. Do not loosen rules to address this response.
+The intended Firebase project is `lumi-f0d6b` and its Realtime Database URL is `https://lumi-f0d6b-default-rtdb.firebaseio.com`. On 15 October 2026, an unauthenticated read of that database returned **401 Permission denied**, consistent with the currently locked `{ ".read": false, ".write": false }` rules supplied by the project owner. This is distinct from the previous project's deactivated database response.
 
-The Firebase CLI account available in this workspace did not list `lumi-fb051` among its accessible projects. A direct instance-list request returned HTTP 403 with `serviceusage.services.use` and `firebasedatabase.instances.list` denied. Therefore database activation, rules publishing, and live two-account security tests require a project owner to grant suitable project access or perform the steps below. Do not infer a Storage cause from the database 423; Storage must be checked separately.
+The Firebase CLI account in this workspace received HTTP **403 Permission denied** when listing web apps in `lumi-f0d6b`. It therefore cannot retrieve the remaining web app settings or publish rules yet. Do not copy API key, Auth domain, sender ID, app ID, or Storage bucket values from the previous project. The project owner must grant suitable access or supply the new project's public web app configuration.
 
-## Firebase Console steps (project owner)
+## Web app configuration
 
-1. Open Firebase Console → project `lumi-fb051` → Build → Realtime Database. Check the instance status and any displayed deactivation reason. Restore/reactivate `lumi-fb051-default-rtdb` using the Console action or Firebase Support instructions. If billing or quota is cited, resolve that specific notice. Confirm the database URL shown there matches `NEXT_PUBLIC_FIREBASE_DATABASE_URL`.
-2. Authentication → Sign-in method: enable Email/Password and Google. Authentication → Settings → Authorized domains: add `lumi-maxmax.vercel.app` and any preview domain used for live sign-in tests. Complete the Google support email requirement if shown.
-3. Storage → Files/Rules: confirm the bucket is `lumi-fb051.firebasestorage.app`, that Storage is active, and whether the Console requires a billing plan or other activation step. Do not assume the RTDB 423 also affects Storage.
-4. Review and publish `database.rules.json` under Realtime Database → Rules and `storage.rules` under Storage → Rules. These local files are **not** automatically deployed with the Vercel site. Alternatively, after granting the CLI account project access, run `npx firebase-tools deploy --only database,storage --project lumi-fb051` from this repository.
-5. Use two real test accounts to check ownership and denial cases before inviting students. Review notification spam limits and content moderation needs before an open launch; client-origin notifications remain susceptible to abuse by authenticated accounts.
+In Firebase Console → Project settings → Your apps, register/select the Lumi **Web** app and copy the web configuration into `.env.local` for development and Vercel Project → Settings → Environment Variables for Production and Preview. Rebuild after changing any `NEXT_PUBLIC_` value.
 
-## Vercel and local environment
+Required names: `NEXT_PUBLIC_FIREBASE_API_KEY`, `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`, `NEXT_PUBLIC_FIREBASE_DATABASE_URL`, `NEXT_PUBLIC_FIREBASE_PROJECT_ID`, `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`, `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`, `NEXT_PUBLIC_FIREBASE_APP_ID`.
 
-Set these **public Firebase web app identifiers** in Vercel Project → Settings → Environment Variables for Production and Preview, then redeploy. Locally, copy `.env.example` to `.env.local` and replace values with the Firebase Console web app settings. `lib/firebase.ts` intentionally fails initialization when required values are absent or invalid. The Firebase web API key is a public client identifier; never put Firebase Admin service account credentials, private API keys, or YouTube server keys in `NEXT_PUBLIC_` variables.
+Optional: `NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID`. Server-only optional: `YOUTUBE_API_KEY` for developer video discovery. Firebase Web SDK identifiers are public client configuration; Admin service-account JSON and private server keys must never be placed in `NEXT_PUBLIC_` variables or committed to Git.
 
-Required: `NEXT_PUBLIC_FIREBASE_API_KEY`, `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`, `NEXT_PUBLIC_FIREBASE_DATABASE_URL`, `NEXT_PUBLIC_FIREBASE_PROJECT_ID`, `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`, `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`, `NEXT_PUBLIC_FIREBASE_APP_ID`.
+`lib/firebase.ts` checks that the database URL, Auth domain, Storage bucket, sender ID, and app ID are internally consistent with the selected project. Only Firebase Console can confirm that the API key and web app actually belong to that project. The application will fail initialization with an actionable missing/mismatch message until all required values are configured.
 
-Optional: `NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID`; server-only `YOUTUBE_API_KEY` for YouTube discovery.
+## Console steps
 
-## Verification after reactivation
+1. **Realtime Database:** Confirm the instance URL above. Keep its current locked rules until reviewing the repository's `database.rules.json`. Publish that file in Build → Realtime Database → Rules, or grant the CLI account project access and run `npx firebase deploy --only database --project lumi-f0d6b` from the repository. Do not replace it with a root-level public read/write rule.
+2. **Authentication:** In Build → Authentication → Sign-in method, enable Email/Password and Google. In Authentication → Settings → Authorized domains, add `lumi-maxmax.vercel.app` and any preview domain used for login testing. Configure Google's project support email if Console requests it.
+3. **Storage:** In Build → Storage, create/activate the bucket for `lumi-f0d6b` if none exists. Copy its exact bucket name into `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`; do not infer the suffix. Review and publish the repository's `storage.rules` in Storage → Rules, or run `npx firebase deploy --only storage --project lumi-f0d6b` after CLI access is granted. If Console asks for billing or other activation, complete that exact Console step first.
+4. **Vercel:** Set the new project's web config for Production and Preview. Remove the old project's values only as part of one coordinated update, then redeploy `main`. A Git push alone will not update existing Vercel environment variables.
 
-1. Run `npx tsc --noEmit` and `npm run build` with the required public variables set.
-2. In a fresh browser, create an Email/Password account, confirm its `publicProfiles/{uid}` record, refresh and confirm sign-in persists, then sign out. Sign in with Google and repeat. The browser uses Firebase local persistence.
-3. With account A, create a post and upload an allowed small JPEG or MP4. Confirm the matching Storage path is under A's UID and the Realtime Database record is visible. Reject an oversized or unsupported file in the UI. Check Storage rules in the Rules Playground or Emulator: unauthenticated uploads, B writing to A's path, and overwriting an existing file must all fail.
-4. Check Realtime Database rules with two accounts: A may write only `publicProfiles/A`; B must be denied at `publicProfiles/A`, `privateProfiles/A`, and `community/posts/{id}` when forging `authorId: A`. Check legitimate comments/likes separately. The Console Rules Playground or Local Emulator Suite can test these without changing production records.
-5. Verify a real hackathon project upload and reading from a second account. Confirm `/demo` remains labeled fictional and its activity does not appear in Realtime Database. Simulate an unavailable database and confirm the real routes show an error plus the demo link.
+## Rules model
 
-The app does not currently use Firestore records. If a later feature adds them, create and test Firestore rules for its exact collection paths before enabling that feature. Do not set a public Firestore write rule.
+Public discovery reads exist only at `publicProfiles`, `community/posts`, `hackathon/projects`, `hackathon/teams`, `hackathon/discoverableStudents`, `hackathon/servers`, stories, and follow lists. Private profiles, team requests, notifications, and direct messages require the relevant authenticated user. Writes tie owner/author IDs to `auth.uid`; team owners approve a pending request before adding a member; server messages require membership. Rules validate the fields and sizes needed by current client flows. Storage accepts only owner-path image/video uploads of supported MIME types and bounded sizes, with overwrite and delete denied. Firebase Storage metadata can still be spoofed by a malicious client; scanning real file bytes would require a trusted backend or post-upload moderation.
+
+Notifications are client-originated. Their `senderId` is now bound to `auth.uid`, but an authenticated account can still send unwanted notifications to another user. Before a large public launch, move cross-user notification creation to a trusted backend with rate limits and event verification. User-generated content also needs moderation.
+
+Realtime Database rules cannot count children, so they cannot enforce `maxMembers` for teams. The current client checks capacity for normal use, but a malicious client or concurrent approvals can exceed it. A trusted server transaction is needed before treating team capacity as a hard limit. The same applies to profile skill and featured-project count limits; the rules validate individual values, while the UI enforces list length.
+
+## Verification after configuration
+
+1. Run `npm run test:rules`, `npx tsc --noEmit`, and `npm run build`. The rules tests run only against local `demo-lumi-rules` emulators; they cannot modify production.
+2. With two **real** accounts, register via Email/Password, sign out/in, refresh to check persistence, and test Google sign-in. Confirm each account's `publicProfiles/{uid}` entry and that a user cannot edit the other's profile.
+3. Publish a post, project, and team with account A. Have B view public content, react/comment, request to join A's team, and join a server. Confirm B cannot impersonate A or add themselves to A's team without approval. Test direct-message access with a third account.
+4. Upload an allowed JPEG and MP4; reject an SVG and an oversized file. Confirm an account cannot write to another account's Storage path or overwrite an existing file.
+5. Confirm `/demo` remains labeled fictional, writes only to that browser's localStorage, and creates no Firebase records. Simulate an unavailable database and verify the real pages show errors with a labeled demo link.
+
+**Common errors:** `401 Permission denied` on the new database before rules are published is expected under the locked rules. A rules-based permission denial after publication indicates an unauthorized path, missing Auth session, or a rule/data mismatch. `auth/unauthorized-domain` means the Vercel hostname is absent from authorized domains. Storage 404/permission errors require checking bucket creation, the exact bucket name, activation, and published rules. Build-time Firebase config errors name missing or mismatched web app settings; do not bypass them with placeholders.

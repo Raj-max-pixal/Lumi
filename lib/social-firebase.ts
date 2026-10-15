@@ -52,8 +52,11 @@ export async function createUserProfileIfMissing(profile: FirebaseProfile) {
 }
 
 export async function createNotification(userId: string, title: string, body: string) {
+  const senderId = auth.currentUser?.uid;
+  if (!senderId) throw new Error("Sign in to create a notification.");
   const notificationRef = push(ref(realtimeDb, `notifications/${userId}`));
   await set(notificationRef, {
+    senderId,
     title,
     body,
     createdAt: Date.now()

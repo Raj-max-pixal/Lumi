@@ -5,6 +5,7 @@ import { BellRing } from "lucide-react";
 import { onValue, ref } from "firebase/database";
 import { realtimeDb } from "@/lib/firebase";
 import { LumiViewer } from "@/components/AuthPanel";
+import { firebaseErrorMessage } from "@/lib/firebase-errors";
 
 type NotificationItem = {
   id: string;
@@ -35,7 +36,7 @@ export default function NotificationsPanel({
     const notificationsRef = ref(realtimeDb, `notifications/${viewer.id}`);
     const timeout = window.setTimeout(() => {
       setIsLoading(false);
-      setMessage("No notifications yet.");
+      setMessage("Notifications are taking too long to load. Check the Firebase connection.");
     }, 10000);
 
     const unsubscribe = onValue(
@@ -46,7 +47,7 @@ export default function NotificationsPanel({
           setItems([]);
           setIsLoading(false);
           setMessage("No notifications yet.");
-          console.log("Notifications loaded");
+          window.clearTimeout(timeout);
           return;
         }
 
@@ -58,12 +59,13 @@ export default function NotificationsPanel({
         setItems(next);
         setIsLoading(false);
         setMessage("");
-        console.log("Notifications loaded");
+        window.clearTimeout(timeout);
       },
-      () => {
+      (error: unknown) => {
         setItems([]);
         setIsLoading(false);
-        setMessage("No notifications yet.");
+        setMessage(firebaseErrorMessage(error, "Loading notifications"));
+        window.clearTimeout(timeout);
       }
     );
 

@@ -4,13 +4,13 @@ Lumi is a Next.js social app with Firebase Authentication, Realtime Database, an
 
 ## Firebase setup
 
-1. In Firebase project `lumi-fb051`, reactivate the Realtime Database. A read-only check on 15 October 2026 returned HTTP 423: `The Firebase database 'lumi-fb051-default-rtdb' has been deactivated.` The response does not disclose the reason for deactivation.
+1. Use Firebase project `lumi-f0d6b` and Realtime Database `https://lumi-f0d6b-default-rtdb.firebaseio.com`. Its currently locked rules reject anonymous reads with HTTP 401.
 2. Enable Firebase Authentication providers for Email/Password and Google. Add the Vercel production domain to Authentication → Settings → Authorized domains.
-3. Enable Cloud Storage for Firebase and verify the default bucket is `lumi-fb051.firebasestorage.app`.
-4. Publish [database.rules.json](database.rules.json) in Realtime Database → Rules and [storage.rules](storage.rules) in Storage → Rules. Review the rules for your moderation and privacy requirements before inviting users.
-5. Copy `.env.example` to `.env.local` for local development. Firebase web config is public, but any server secrets must stay outside `NEXT_PUBLIC_` variables.
+3. Create or verify Cloud Storage for Firebase and copy the **exact** bucket name from the new project. Do not reuse the previous project's bucket.
+4. Review and publish [database.rules.json](database.rules.json) in Realtime Database → Rules and [storage.rules](storage.rules) in Storage → Rules. Run `npm run test:rules` locally before publishing.
+5. Copy `.env.example` to `.env.local` and obtain every remaining web app value from the new project's Firebase Console. Firebase web config is public, but server secrets must stay outside `NEXT_PUBLIC_` variables.
 
-The live Vercel project `maxmax/lumi` has the public Firebase variables configured for Production and Preview. A new deployment is required after changing public environment variables.
+The live Vercel project `maxmax/lumi` still needs the **new project's** public Firebase variables for Production and Preview. Update them together, then redeploy; a Git push does not replace stored Vercel environment values.
 
 See [production setup and verification](docs/SETUP.md) for the required variables, exact Firebase Console steps, and two-account security checks. This app currently stores production records in Realtime Database, not Firestore.
 
