@@ -62,6 +62,7 @@ test("projects permit discovery, owner edits, and scoped reactions", async () =>
   await assertSucceeds(update(databaseRef(database("alice"), "hackathon/projects/p1"), { title: "Updated project" }));
   await assertFails(set(databaseRef(database("bob"), "hackathon/projects/p1"), null));
   await assertSucceeds(set(databaseRef(database("alice"), "hackathon/projects/linked"), { ...project("alice"), websiteUrl: "https://lumi-maxmax.vercel.app/", githubUrl: "https://github.com/Raj-max-pixal/Lumi", imageUrls: ["https://example.com/thumbnail.png"] }));
+  await assertSucceeds(set(databaseRef(database("alice"), "hackathon/projects/gallery"), { ...project("alice"), imageUrls: ["data:image/jpeg;base64,AA==", "data:image/jpeg;base64,BB=="] }));
   await assertFails(set(databaseRef(database("alice"), "hackathon/projects/unsafe"), { ...project("alice"), imageUrls: ["javascript:alert(1)"] }));
 });
 
@@ -93,6 +94,8 @@ test("stories accept secure image links and size-limited gallery images", async 
   await assertSucceeds(set(databaseRef(database("alice"), "stories/s1"), story("https://example.com/story.jpg")));
   await assertSucceeds(set(databaseRef(database("alice"), "stories/s2"), story("data:image/jpeg;base64,AA==")));
   await assertFails(set(databaseRef(database("alice"), "stories/s3"), story("javascript:alert(1)")));
+  await assertSucceeds(set(databaseRef(database("alice"), "stories/s1"), null));
+  await assertFails(set(databaseRef(database("bob"), "stories/s2"), null));
 });
 
 test("direct messages are visible only to participants and require the sender UID", async () => {

@@ -11,6 +11,7 @@ import EditProfilePanel from "@/components/EditProfilePanel";
 import LumiCard from "@/components/LumiCard";
 import { FirebaseProfile, toggleFollowUser } from "@/lib/social-firebase";
 import { HackathonProject, isSafeUrl } from "@/lib/hackathon";
+import { isDisplayableImageSource } from "@/lib/media";
 
 type ProfileScreenProps = {
   viewer: LumiViewer | null;
@@ -269,7 +270,7 @@ export default function ProfileScreen({
 
       {isOwnProfile ? <EditProfilePanel viewer={viewer} isFocusMode={isFocusMode} /> : null}
 
-      {featuredProjects.length > 0 && <section><h2 className="mb-3 text-lg font-bold">Featured projects</h2><div className="grid gap-4 md:grid-cols-3">{featuredProjects.map((project) => <Link key={project.id} href={`/hackathon/project/${project.id}`} className={`overflow-hidden rounded-2xl border ${isFocusMode ? "border-slate-200 bg-white" : "border-fuchsia-300/20 bg-[#211533]"}`}><div className="h-36 bg-gradient-to-br from-[#64446c] to-[#141d39]">{isSafeUrl(project.imageUrls?.[0] ?? "") && <img src={project.imageUrls?.[0]} alt="" className="h-full w-full object-cover" />}</div><div className="p-4"><h3 className="font-bold">{project.title}</h3><p className="mt-1 line-clamp-2 text-sm opacity-65">{project.tagline || project.description}</p></div></Link>)}</div></section>}
+      {featuredProjects.length > 0 && <section><h2 className="mb-3 text-lg font-bold">Featured projects</h2><div className="grid gap-4 md:grid-cols-3">{featuredProjects.map((project) => <Link key={project.id} href={`/hackathon/project/${project.id}`} className={`overflow-hidden rounded-2xl border ${isFocusMode ? "border-slate-200 bg-white" : "border-fuchsia-300/20 bg-[#211533]"}`}><div className="h-36 bg-gradient-to-br from-[#64446c] to-[#141d39]">{isDisplayableImageSource(project.imageUrls?.[0] ?? "") && <img src={project.imageUrls?.[0]} alt="" className="h-full w-full object-cover" />}</div><div className="p-4"><h3 className="font-bold">{project.title}</h3><p className="mt-1 line-clamp-2 text-sm opacity-65">{project.tagline || project.description}</p></div></Link>)}</div></section>}
 
       <section className="space-y-5">
         <div className={`flex items-center justify-center gap-2 border-y py-3 ${isFocusMode ? "border-slate-200" : "border-white/10"}`}>
@@ -302,7 +303,7 @@ export default function ProfileScreen({
           <div className="grid gap-4 md:grid-cols-2">
             {projects.map((project) => <div key={project.id} className={`overflow-hidden rounded-[22px] border transition hover:border-sky-400 ${isFocusMode ? "border-slate-200 bg-white" : "border-fuchsia-300/15 bg-[#211533]"}`}>
               <Link href={`/hackathon/project/${project.id}`}>
-              <div className="flex h-36 items-center justify-center bg-gradient-to-br from-[#1a3653] to-[#49346b]">{isSafeUrl(project.imageUrls?.[0] ?? "") ? <img src={project.imageUrls?.[0]} alt={`${project.title} thumbnail`} className="h-full w-full object-cover" /> : <Code2 className="h-9 w-9 text-sky-300" />}</div>
+              <div className="flex h-36 items-center justify-center bg-gradient-to-br from-[#1a3653] to-[#49346b]">{isDisplayableImageSource(project.imageUrls?.[0] ?? "") ? <img src={project.imageUrls?.[0]} alt={`${project.title} thumbnail`} className="h-full w-full object-cover" /> : <Code2 className="h-9 w-9 text-sky-300" />}</div>
               <div className="p-4"><p className="text-xs font-semibold text-sky-500">{project.category || "Student project"}</p><h3 className="mt-1 font-bold">{project.title}</h3><p className={`mt-1 line-clamp-2 text-sm ${isFocusMode ? "text-slate-500" : "text-white/60"}`}>{project.tagline || project.description}</p><div className="mt-3 flex flex-wrap gap-1">{project.technologies?.slice(0, 4).map((tech) => <span key={tech} className="rounded-full bg-white/10 px-2 py-0.5 text-xs">{tech}</span>)}</div></div></Link>
               {isOwnProfile && <button type="button" onClick={() => void toggleFeatured(project.id)} className="mb-4 ml-4 inline-flex items-center gap-1 text-xs font-semibold text-fuchsia-300"><Pin className="h-3.5 w-3.5" /> {safeProfile.featuredProjectIds?.includes(project.id) ? "Remove from featured" : "Feature project"}</button>}
             </div>)}

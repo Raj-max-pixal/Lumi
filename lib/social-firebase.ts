@@ -77,6 +77,19 @@ export async function togglePostSave(postId: string, userId: string, saved: bool
   else await set(saveRef, true);
 }
 
+export async function addPostComment(args: { postId: string; userId: string; authorName: string; authorHandle: string; body: string }) {
+  requireCurrentUser(args.userId);
+  const body = args.body.trim();
+  if (!body) throw new Error("Write a comment before posting.");
+  await set(push(ref(realtimeDb, `community/posts/${args.postId}/comments`)), {
+    authorId: args.userId,
+    authorName: args.authorName.slice(0, 100),
+    authorHandle: args.authorHandle.slice(0, 100),
+    body: body.slice(0, 1000),
+    createdAt: Date.now()
+  });
+}
+
 export async function toggleFollowUser(args: {
   currentUserId: string;
   currentUserName: string;

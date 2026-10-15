@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
-import { onValue, push, ref, set } from "firebase/database";
-import { ImagePlus, Loader2, Plus, X } from "lucide-react";
+import { onValue, push, ref, remove, set } from "firebase/database";
+import { ImagePlus, Loader2, Plus, Trash2, X } from "lucide-react";
 import { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react";
 import { LumiViewer } from "@/components/AuthPanel";
 import { auth, realtimeDb } from "@/lib/firebase";
@@ -56,6 +56,15 @@ export default function StoriesRail({ viewer, isFocusMode = false }: { viewer: L
     finally { setSharing(false); }
   }
 
+  async function deleteStory(story: Story) {
+    if (!viewer || story.authorId !== viewer.id || auth.currentUser?.uid !== viewer.id) return;
+    try {
+      await remove(ref(realtimeDb, `stories/${story.id}`));
+      setMessage("Story deleted.");
+      setActiveStoryIndex(null);
+    } catch (error) { setMessage(firebaseErrorMessage(error, "Deleting your story")); }
+  }
+
   const activeStory = activeStoryIndex === null ? null : stories[activeStoryIndex];
   const panel = isFocusMode ? "border-slate-200 bg-white" : "border-white/10 bg-zinc-950";
   return <>
@@ -74,6 +83,6 @@ export default function StoriesRail({ viewer, isFocusMode = false }: { viewer: L
       {message ? <p role="status" className={`mt-3 text-sm ${message.startsWith("Story shared") ? "text-emerald-500" : "text-rose-500"}`}>{message}</p> : null}
       {!stories.length && !message ? <p className="mt-3 text-sm opacity-60">No stories yet. Share the first one.</p> : null}
     </section>
-    <AnimatePresence>{activeStory ? <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4" onClick={() => setActiveStoryIndex(null)}><div className="relative aspect-[9/16] max-h-[90vh] w-full max-w-sm overflow-hidden rounded-2xl bg-zinc-900" onClick={(event) => event.stopPropagation()}><img src={activeStory.mediaUrl} alt={`${activeStory.authorName}'s story`} className="h-full w-full object-contain" /><div className="absolute inset-x-0 top-0 bg-gradient-to-b from-black/70 to-transparent p-4 text-white"><div className="mb-4 flex gap-1">{stories.map((story, index) => <span key={story.id} className={`h-1 flex-1 rounded-full ${index <= (activeStoryIndex ?? 0) ? "bg-white" : "bg-white/40"}`} />)}</div><div className="flex items-center justify-between"><Link href={`/profile/${activeStory.authorId}`} onClick={() => setActiveStoryIndex(null)} className="flex items-center gap-2 text-sm font-semibold"><img src={activeStory.authorAvatar} alt="" className="h-8 w-8 rounded-full object-cover" />{activeStory.authorName}</Link><button type="button" onClick={() => setActiveStoryIndex(null)} aria-label="Close story"><X className="h-5 w-5" /></button></div></div><div className="absolute inset-x-0 bottom-0 grid grid-cols-2 text-white"><button type="button" disabled={activeStoryIndex === 0} onClick={() => setActiveStoryIndex((index) => Math.max(0, (index ?? 0) - 1))} className="p-4 text-left disabled:opacity-40">Previous</button><button type="button" onClick={() => setActiveStoryIndex((index) => index === null || index >= stories.length - 1 ? null : index + 1)} className="p-4 text-right">Next</button></div></div></motion.div> : null}</AnimatePresence>
+    <AnimatePresence>{activeStory ? <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4" onClick={() => setActiveStoryIndex(null)}><div className="relative aspect-[9/16] max-h-[90vh] w-full max-w-sm overflow-hidden rounded-2xl bg-zinc-900" onClick={(event) => event.stopPropagation()}><img src={activeStory.mediaUrl} alt={`${activeStory.authorName}'s story`} className="h-full w-full object-contain" /><div className="absolute inset-x-0 top-0 bg-gradient-to-b from-black/70 to-transparent p-4 text-white"><div className="mb-4 flex gap-1">{stories.map((story, index) => <span key={story.id} className={`h-1 flex-1 rounded-full ${index <= (activeStoryIndex ?? 0) ? "bg-white" : "bg-white/40"}`} />)}</div><div className="flex items-center justify-between"><Link href={`/profile/${activeStory.authorId}`} onClick={() => setActiveStoryIndex(null)} className="flex items-center gap-2 text-sm font-semibold"><img src={activeStory.authorAvatar} alt="" className="h-8 w-8 rounded-full object-cover" />{activeStory.authorName}</Link><div className="flex items-center gap-2">{activeStory.authorId === viewer?.id ? <button type="button" onClick={() => void deleteStory(activeStory)} aria-label="Delete your story" className="rounded-lg bg-black/25 p-2 hover:bg-rose-500/70"><Trash2 className="h-4 w-4" /></button> : null}<button type="button" onClick={() => setActiveStoryIndex(null)} aria-label="Close story"><X className="h-5 w-5" /></button></div></div></div><div className="absolute inset-x-0 bottom-0 grid grid-cols-2 text-white"><button type="button" disabled={activeStoryIndex === 0} onClick={() => setActiveStoryIndex((index) => Math.max(0, (index ?? 0) - 1))} className="p-4 text-left disabled:opacity-40">Previous</button><button type="button" onClick={() => setActiveStoryIndex((index) => index === null || index >= stories.length - 1 ? null : index + 1)} className="p-4 text-right">Next</button></div></div></motion.div> : null}</AnimatePresence>
   </>;
 }
