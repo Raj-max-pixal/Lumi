@@ -6,7 +6,7 @@ Lumi uses Firebase Authentication, **Realtime Database**, and Cloud Storage for 
 
 The intended Firebase project is `lumi-f0d6b` and its Realtime Database URL is `https://lumi-f0d6b-default-rtdb.firebaseio.com`. On 16 October 2026, the project owner's Firebase CLI account created the `Lumi Web` app, retrieved its SDK configuration, and published `database.rules.json` to the active Realtime Database. An unauthenticated read of `publicProfiles` returned 200; an unauthenticated read of `privateProfiles` returned 401, as intended.
 
-The verified web configuration is in ignored `.env.local` and the seven matching public Vercel variables for Production and Preview. Cloud Storage rules are **not yet published**: the CLI could not resolve `firebasestorage.googleapis.com`, so its deploy stopped before checking the bucket. Verify the bucket is active and publish `storage.rules` before testing uploads. Authentication providers and authorized domains still need Console verification.
+The verified web configuration is in ignored `.env.local` and the seven matching public Vercel variables for Production and Preview. The public Vercel deployment is live at `https://lumi-maxmax.vercel.app/`. Cloud Storage rules are **not yet published**: Firebase reports that Storage has not been set up for this project. Open Build → Storage → Get Started in Firebase Console, create the bucket, then publish `storage.rules` before testing uploads. Authentication providers and authorized domains still need Console verification. On 16 October, Firebase Console itself failed to load its terms-of-service acceptance status in this browser, so the setup could not be completed here.
 
 ## Web app configuration
 
