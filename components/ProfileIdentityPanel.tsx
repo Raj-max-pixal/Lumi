@@ -53,7 +53,7 @@ export default function ProfileIdentityPanel({
           <span className="text-sm font-semibold">Collab mode + digital clone</span>
         </div>
         <p className={isFocusMode ? "mt-2 text-sm text-slate-600" : "mt-2 text-sm text-white/70"}>
-          Shared posts, co-created reels, and an offline auto-reply personality layer are part of the final product direction.
+          Shared posts, co-created dev clips, and an offline auto-reply personality layer are part of the final product direction.
         </p>
       </div>
     </section>

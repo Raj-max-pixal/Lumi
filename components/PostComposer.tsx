@@ -57,7 +57,7 @@ export default function PostComposer({ viewer, isFocusMode = false }: { viewer: 
         <label className="text-sm font-medium">YouTube video or Short URL (optional)<input type="url" maxLength={2048} value={videoUrl} onChange={(event) => setVideoUrl(event.target.value)} placeholder="https://youtube.com/shorts/..." className={`mt-2 ${field}`} /></label>
       </div>
       <p className="text-xs opacity-65">Direct photo and video uploads are unavailable. Link media already hosted by you; videos stay on YouTube.</p>
-      <div className="flex items-center justify-between gap-4"><p role="status" className={isFocusMode ? "text-sm text-slate-500" : "text-sm text-white/55"}>{status || "Share a project update, tutorial, or developer reel."}</p><button type="submit" disabled={isPosting} className="inline-flex items-center gap-2 rounded-full bg-lumi-purple px-4 py-2 text-sm font-medium text-white transition hover:brightness-110 disabled:opacity-70">{isPosting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Share</button></div>
+      <div className="flex items-center justify-between gap-4"><p role="status" className={isFocusMode ? "text-sm text-slate-500" : "text-sm text-white/55"}>{status || "Share a project update, tutorial, or dev clip."}</p><button type="submit" disabled={isPosting} className="inline-flex items-center gap-2 rounded-full bg-lumi-purple px-4 py-2 text-sm font-medium text-white transition hover:brightness-110 disabled:opacity-70">{isPosting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Share</button></div>
     </form>
   </section>;
 }

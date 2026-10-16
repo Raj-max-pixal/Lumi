@@ -307,7 +307,7 @@ export default function CommunityFeed({
                   author={post.authorName}
                   handle={`@${post.authorId.slice(0, 8)}`}
                   avatarUrl={post.authorAvatar}
-                  title={post.videoUrl ? "Reel" : post.imageUrl ? "Photo" : "Post"}
+                  title={post.videoUrl ? "Dev Clip" : post.imageUrl ? "Photo" : "Post"}
                   description={post.caption}
                   imageUrl={post.imageUrl}
                   videoUrl={post.videoUrl}

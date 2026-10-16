@@ -132,7 +132,7 @@ export default function LumiCard({
           {youtubeVideoId(videoUrl) ? <iframe title={title} src={`https://www.youtube-nocookie.com/embed/${youtubeVideoId(videoUrl)}`} className="h-full w-full bg-black" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen referrerPolicy="strict-origin-when-cross-origin" /> : isSafeUrl(videoUrl) ? <video className="h-full w-full bg-black object-contain" src={videoUrl} controls playsInline preload="metadata" aria-label={title} /> : null}
           <div className="pointer-events-none absolute bottom-4 left-4 flex items-center gap-2 rounded-full bg-black/45 px-3 py-1 text-xs text-white">
             <Play className="h-3.5 w-3.5 fill-current" />
-            Reel
+            Dev Clip
           </div>
         </div>
       ) : null}

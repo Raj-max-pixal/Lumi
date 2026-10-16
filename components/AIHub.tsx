@@ -20,7 +20,7 @@ const toolGroups = [
     title: "Create Post",
     icon: MessageSquareText,
     tool: "caption" as const,
-    prompt: "night drive reel for creators"
+    prompt: "short project clip for creators"
   },
   {
     title: "Generate Image",
@@ -44,7 +44,7 @@ const toolGroups = [
     title: "Feed Control",
     icon: WandSparkles,
     tool: "feed-control" as const,
-    prompt: "show more tech content and hide cringe reels"
+    prompt: "show more tech clips that match my interests"
   },
   {
     title: "Auto Reply",

@@ -33,7 +33,7 @@ body {
   min-height: calc(100dvh - clamp(0px, 2vw, 36px));
   border: 1px solid rgba(107, 181, 218, 0.3);
   border-radius: clamp(0px, 1.4vw, 22px);
-  box-shadow: 0 0 0 5px rgba(8, 15, 30, 0.38), 0 24px 70px rgba(0, 0, 0, 0.32), inset 0 0 36px rgba(67, 163, 202, 0.035);
+  box-shadow: 0 0 0 2px rgba(8, 15, 30, 0.38), 0 24px 70px rgba(0, 0, 0, 0.32), inset 0 0 36px rgba(67, 163, 202, 0.035);
 }
 
 .crt-screen::after {
@@ -43,7 +43,7 @@ body {
   inset: 0;
   border-radius: inherit;
   pointer-events: none;
-  opacity: 0.12;
+  opacity: 0.035;
   background: repeating-linear-gradient(to bottom, transparent 0 3px, rgba(0, 0, 0, 0.32) 3px 4px);
 }
 
@@ -54,10 +54,10 @@ body {
 .lumi-warm .crt-screen {
   background: radial-gradient(circle at 50% -15%, #fff8db, transparent 55%), #f6edcf;
   border-color: #a68143;
-  box-shadow: 0 0 0 5px #382a1b, 0 24px 70px rgba(72, 45, 16, 0.25), inset 0 0 45px rgba(167, 119, 42, 0.1);
+  box-shadow: 0 0 0 2px #b79a65, 0 24px 70px rgba(72, 45, 16, 0.16), inset 0 0 45px rgba(167, 119, 42, 0.045);
 }
 
-.lumi-warm .crt-screen::after { opacity: 0.07; }
+.lumi-warm .crt-screen::after { opacity: 0.015; }
 .lumi-warm :is(.bg-white, .bg-slate-50) { background-color: #fff8e8 !important; }
 .lumi-warm .bg-\[\#f5f7fb\] { background-color: #f6edcf !important; }
 .lumi-warm :is(.border-slate-200, .border-slate-100) { border-color: #d9bd84 !important; }

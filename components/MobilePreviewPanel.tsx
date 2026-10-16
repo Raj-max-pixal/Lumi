@@ -15,7 +15,7 @@ export default function MobilePreviewPanel({ isFocusMode = false }: { isFocusMod
       </div>
       <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
         <div className={isFocusMode ? "text-sm leading-7 text-slate-600" : "text-sm leading-7 text-white/72"}>
-          Lumi should stay web-first while keeping every core surface mobile-ready: vertical reels, one-thumb navigation, stories, chat,
+          Lumi should stay web-first while keeping every core surface mobile-ready: vertical dev clips, one-thumb navigation, stories, chat,
           communities, creator analytics, and monetization rails. The website becomes the product engine, and the app becomes the fastest access point.
         </div>
         <div className="flex items-end justify-center gap-4">
