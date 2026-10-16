@@ -1,3 +1,3 @@
-import DemoHub from "@/components/DemoHub";
+import { redirect } from "next/navigation";
 
-export default function DemoPage() { return <DemoHub />; }
+export default function DemoPage() { redirect("/community"); }

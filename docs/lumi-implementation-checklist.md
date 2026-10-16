@@ -27,10 +27,10 @@ Updated 2026-10-16 after Firebase access, Auth setup, link-only publishing, and 
 
 Cloud Storage has no bucket and would require Blaze; Lumi's supported workflows use links instead. Full Google popup sign-in, long-lived real-user sessions, and several social flows still need browser testing. See [SETUP.md](SETUP.md).
 
-## Explicit browser demo and external developer videos
+## Private Community and external developer videos
 
-- `/demo` is a separate, fictional browser demo. It persists to localStorage only; it never reads or writes Firebase. Users can switch among five labeled demo identities to test server membership, discussions, team join requests, and project publishing.
-- Demo records are isolated from production records. Browser localStorage is a presentation aid, not secure authorization or shared persistence. Trusted operations are still needed for hard team-size limits.
+- `/community` uses Firebase Authentication and private Realtime Database records scoped to the signed-in UID. The starter spaces show Lumi Dev as owner. A user's own servers and messages are visible only to that account; the old `/demo` route redirects to `/community`.
+- Previous fictional browser-local records are not imported into real accounts. Community server notes are private; shared teams and hackathon projects remain in their dedicated live routes. Trusted operations are still needed for hard team-size limits.
 - `/clips` shows curated creator-hosted YouTube embeds and Lumi Originals in separate source views. No YouTube Data API key, scraping, or video rehosting is used.
 - Instagram automatic public-account discovery is not enabled. The official API needs a professional account, permissions, and approved access for hashtag media. No scraping, copying, or fictional Instagram content is used.
-- The existing Firebase-backed Team Finder and Hackathon Showcase remain real-data routes; their database failures still surface honestly. The demo hub does not prove that the real security rules or persistence work.
+- The existing Firebase-backed Team Finder and Hackathon Showcase remain live shared-data routes; their database failures still surface honestly.

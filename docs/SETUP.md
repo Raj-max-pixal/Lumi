@@ -1,6 +1,6 @@
 # Lumi Firebase setup
 
-Lumi's supported core workflows use Firebase Authentication and **Realtime Database** on the current free plan. Publishing uses text and external HTTPS links; the web app does not upload files or require Firebase Storage. The app currently has no Firestore record reads or writes. The separate `/demo` route uses fictional browser-local data only.
+Lumi's supported core workflows use Firebase Authentication and **Realtime Database** on the current free plan. Publishing uses text and external HTTPS links; the web app does not upload files or require Firebase Storage. The app currently has no Firestore record reads or writes. `/community` requires sign-in and stores each account's private servers and messages at `userCommunities/{uid}`. The old `/demo` URL redirects there.
 
 ## Correct project and current status
 
@@ -27,7 +27,7 @@ Optional: `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` (unused by the link-only app) an
 
 ## Rules model
 
-Public discovery reads exist only at `publicProfiles`, `community/posts`, `hackathon/projects`, `hackathon/teams`, `hackathon/discoverableStudents`, `hackathon/servers`, stories, and follow lists. Private profiles, team requests, notifications, and direct messages require the relevant authenticated user. Writes tie owner/author IDs to `auth.uid`; team owners approve a pending request before adding a member; server messages require membership. Rules validate the fields and sizes needed by current client flows. Storage accepts only owner-path image/video uploads of supported MIME types and bounded sizes, with overwrite and delete denied. Firebase Storage metadata can still be spoofed by a malicious client; scanning real file bytes would require a trusted backend or post-upload moderation.
+Public discovery reads exist only at `publicProfiles`, `community/posts`, `hackathon/projects`, `hackathon/teams`, `hackathon/discoverableStudents`, `hackathon/servers`, stories, and follow lists. Private profiles, personal communities, team requests, notifications, and direct messages require the relevant authenticated user. Writes tie owner/author IDs to `auth.uid`; team owners approve a pending request before adding a member; server messages require membership. Rules validate the fields and sizes needed by current client flows. Storage accepts only owner-path image/video uploads of supported MIME types and bounded sizes, with overwrite and delete denied. Firebase Storage metadata can still be spoofed by a malicious client; scanning real file bytes would require a trusted backend or post-upload moderation.
 
 Notifications are client-originated. Their `senderId` is now bound to `auth.uid`, but an authenticated account can still send unwanted notifications to another user. Before a large public launch, move cross-user notification creation to a trusted backend with rate limits and event verification. User-generated content also needs moderation.
 
@@ -39,6 +39,6 @@ Realtime Database rules cannot count children, so they cannot enforce `maxMember
 2. With two **real** accounts, register via Email/Password, sign out/in, refresh to check persistence, and test Google sign-in. Confirm each account's `publicProfiles/{uid}` entry and that a user cannot edit the other's profile.
 3. Publish a post, project, and team with account A. Have B view public content, react/comment, request to join A's team, and join a server. Confirm B cannot impersonate A or add themselves to A's team without approval. Test direct-message access with a third account.
 4. Run `./tests/live-firebase-smoke.ps1` with the owner-authorized test plan to verify real link-only publishing, public reads, and cross-user denial. It creates and removes temporary Auth users and a project. Verify a user-facing post, story, and avatar URL in a browser. Direct file uploads should clearly say they are unavailable.
-5. Confirm `/demo` remains labeled fictional, writes only to that browser's localStorage, and creates no Firebase records. Simulate an unavailable database and verify the real pages show errors with a labeled demo link.
+5. Open `/community` while signed out and confirm its contents are hidden. Sign in with two accounts and verify each sees only their own server notes. Confirm the starter servers show Lumi Dev as owner and a profile with username `@raj` sees `Raj Community`. The old `/demo` URL should redirect to `/community`.
 
 **Common errors:** A rules-based permission denial indicates an unauthorized path, missing Auth session, or a rule/data mismatch. `auth/unauthorized-domain` means the Vercel hostname is absent from authorized domains. `CONFIGURATION_NOT_FOUND` means Auth has not been initialized for the project. Build-time Firebase config errors name missing or mismatched web app settings; do not bypass them with placeholders.

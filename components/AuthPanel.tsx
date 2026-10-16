@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import Link from "next/link";
 import {
   createUserWithEmailAndPassword,
   GoogleAuthProvider,
@@ -66,7 +65,7 @@ export default function AuthPanel({
   useEffect(() => {
     const timeout = window.setTimeout(() => {
       setIsLoading(false);
-      setStatus("Sign-in is taking too long. You can try again or open the separate demo.");
+      setStatus("Sign-in is taking too long. Please try again.");
     }, 10000);
 
     const unsubscribe = onAuthStateChanged(
@@ -230,7 +229,7 @@ export default function AuthPanel({
             </button>
           </div>
           <button type="button" onClick={() => setCreatingAccount((current) => !current)} className="text-sm text-lumi-purple">{creatingAccount ? "Already have an account? Sign in" : "New to Lumi? Create an account"}</button>
-          <p className={isFocusMode ? "text-xs text-slate-500" : "text-xs text-white/55"}>Firebase unavailable? <Link href="/demo" className="font-semibold text-lumi-purple underline">Open the fictional demo</Link>.</p>
+          <p className={isFocusMode ? "text-xs text-slate-500" : "text-xs text-white/55"}>If sign-in is unavailable, please try again shortly.</p>
         </div>
       )}
       {viewer && !isLoading && status !== "Signed in and ready." && status !== "Signed out." ? <p role="status" className="mt-3 text-sm text-amber-500">{status}</p> : null}

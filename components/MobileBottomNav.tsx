@@ -6,7 +6,7 @@ import { Clapperboard, Home, MessageCircleMore, Trophy, User, Users } from "luci
 
 const items = [
   { href: "/", label: "Home", icon: Home },
-  { href: "/demo", label: "Community", icon: Users },
+  { href: "/community", label: "Community", icon: Users },
   { href: "/hackathon", label: "Hackathon", icon: Trophy },
   { href: "/clips", label: "Reels", icon: Clapperboard },
   { href: "/profile", label: "Profile", icon: User }

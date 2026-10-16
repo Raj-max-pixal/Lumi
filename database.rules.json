@@ -24,6 +24,31 @@
         ".write": "auth !== null && auth.uid === $uid"
       }
     },
+    "userCommunities": {
+      "$uid": {
+        ".read": "auth !== null && auth.uid === $uid",
+        "servers": {
+          "$serverId": {
+            ".write": "auth !== null && auth.uid === $uid && ((!data.exists() && newData.child('ownerId').val() === auth.uid) || (data.exists() && !newData.exists() && data.child('ownerId').val() === auth.uid))",
+            ".validate": "newData.hasChildren(['ownerId', 'name', 'description', 'category', 'rules', 'createdAt']) && newData.child('ownerId').val() === auth.uid && newData.child('name').isString() && newData.child('name').val().length >= 3 && newData.child('name').val().length <= 80 && newData.child('description').isString() && newData.child('description').val().length >= 10 && newData.child('description').val().length <= 500 && newData.child('category').isString() && newData.child('category').val().length <= 80 && newData.child('rules').isString() && newData.child('rules').val().length <= 500 && newData.child('createdAt').isNumber()"
+          }
+        },
+        "joined": {
+          "$serverId": {
+            ".write": "auth !== null && auth.uid === $uid && !data.exists() && newData.val() === true",
+            ".validate": "newData.val() === true"
+          }
+        },
+        "messages": {
+          "$serverId": {
+            "$messageId": {
+              ".write": "auth !== null && auth.uid === $uid && !data.exists() && newData.child('authorId').val() === auth.uid && (root.child('userCommunities').child($uid).child('joined').child($serverId).val() === true || root.child('userCommunities').child($uid).child('servers').child($serverId).child('ownerId').val() === auth.uid)",
+              ".validate": "newData.hasChildren(['authorId', 'text', 'createdAt']) && newData.child('authorId').val() === auth.uid && newData.child('text').isString() && newData.child('text').val().length > 0 && newData.child('text').val().length <= 1000 && newData.child('createdAt').isNumber()"
+            }
+          }
+        }
+      }
+    },
     "community": {
       "posts": {
         ".read": true,

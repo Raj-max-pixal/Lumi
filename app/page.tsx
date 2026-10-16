@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
-import Link from "next/link";
 import dynamic from "next/dynamic";
 import { limitToLast, onValue, orderByChild, query, ref } from "firebase/database";
 import { onAuthStateChanged } from "firebase/auth";
@@ -241,7 +240,7 @@ export default function HomePage() {
       {error && pathname !== "/clips" ? (
         <div className={`rounded-[24px] border px-4 py-3 ${isFocusMode ? "border-slate-200 bg-white" : "border-white/10 bg-zinc-950"}`}>
           <p className={isFocusMode ? "text-sm text-slate-600" : "text-sm text-white/70"}>{error} Check the Lumi database connection, then retry.</p>
-          <div className="mt-2 flex flex-wrap items-center gap-3"><button type="button" onClick={() => setRetryKey((key) => key + 1)} className="rounded-full bg-lumi-purple px-4 py-1.5 text-sm font-semibold text-white">Retry loading</button><Link href="/demo" className="text-sm font-semibold text-lumi-purple underline">Open the separate fictional demo</Link></div>
+          <div className="mt-2 flex flex-wrap items-center gap-3"><button type="button" onClick={() => setRetryKey((key) => key + 1)} className="rounded-full bg-lumi-purple px-4 py-1.5 text-sm font-semibold text-white">Retry loading</button></div>
         </div>
       ) : null}
       {renderActiveView()}

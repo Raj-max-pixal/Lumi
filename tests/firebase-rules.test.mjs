@@ -40,6 +40,25 @@ test("profiles require the owner and cannot be deleted", async () => {
   await assertFails(get(databaseRef(database("bob"), "privateProfiles/alice/city")));
 });
 
+test("each Community is private and only its owner can add servers and messages", async () => {
+  await environment.clearDatabase();
+  const alice = database("alice");
+  const bob = database("bob");
+  const path = "userCommunities/alice";
+  const serverData = { ownerId: "alice", name: "Alice builders", description: "A private space to build useful apps.", category: "Web Development", rules: "Be respectful.", createdAt: Date.now() };
+  await assertFails(get(databaseRef(database(), path)));
+  await assertFails(get(databaseRef(bob, path)));
+  await assertSucceeds(get(databaseRef(alice, path)));
+  await assertSucceeds(set(databaseRef(alice, `${path}/servers/own`), serverData));
+  await assertFails(set(databaseRef(bob, `${path}/servers/stolen`), { ...serverData, ownerId: "bob" }));
+  await assertFails(set(databaseRef(alice, `${path}/servers/forged`), { ...serverData, ownerId: "bob" }));
+  await assertSucceeds(set(databaseRef(alice, `${path}/joined/ai-builders`), true));
+  await assertFails(set(databaseRef(bob, `${path}/joined/ai-builders`), true));
+  await assertSucceeds(set(databaseRef(alice, `${path}/messages/ai-builders/m1`), { authorId: "alice", text: "Hello", createdAt: Date.now() }));
+  await assertFails(set(databaseRef(bob, `${path}/messages/ai-builders/m2`), { authorId: "bob", text: "No", createdAt: Date.now() }));
+  await assertFails(set(databaseRef(alice, `${path}/messages/ai-builders/m3`), { authorId: "bob", text: "Forged", createdAt: Date.now() }));
+});
+
 test("posts bind author ID; other users can like and comment without editing author data", async () => {
   await environment.clearDatabase();
   await assertSucceeds(set(databaseRef(database("alice"), "community/posts/p1"), post("alice")));
