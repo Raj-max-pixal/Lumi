@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { isSafeUrl, youtubeVideoId } from "@/lib/hackathon";
+import { normalizeExternalImageUrl } from "@/lib/media";
 import { motion } from "framer-motion";
 import { Bookmark, Heart, MessageCircle, MoreHorizontal, Play, Send } from "lucide-react";
 import { useState } from "react";
@@ -94,6 +95,8 @@ export default function LumiCard({
 }: LumiCardProps) {
   const baseClass = isFocusMode ? "border-slate-200 bg-white text-slate-900" : "border-white/10 bg-zinc-950 text-white";
   const [showHeartBurst, setShowHeartBurst] = useState(false);
+  const [failedImageUrl, setFailedImageUrl] = useState("");
+  const resolvedImageUrl = imageUrl ? normalizeExternalImageUrl(imageUrl) : null;
 
   function triggerHeartBurst() {
     setShowHeartBurst(true);
@@ -136,7 +139,7 @@ export default function LumiCard({
 
       {contentType === "image" ? (
         <div className="relative aspect-[4/5] overflow-hidden border-y border-current/10" onDoubleClick={triggerHeartBurst}>
-          {isSafeUrl(imageUrl) && <Image src={imageUrl} alt={title} fill unoptimized sizes="(max-width: 640px) 100vw, 640px" className="object-cover" />}
+          {resolvedImageUrl && failedImageUrl !== resolvedImageUrl ? <Image src={resolvedImageUrl} alt={title} fill unoptimized sizes="(max-width: 640px) 100vw, 640px" className="object-cover" onError={() => setFailedImageUrl(resolvedImageUrl)} /> : <div className="flex h-full flex-col items-center justify-center gap-3 bg-slate-900 px-6 text-center text-sm text-white/75" role="status"><p>This image is unavailable from its host.</p>{resolvedImageUrl && <a href={resolvedImageUrl} target="_blank" rel="noopener noreferrer" className="font-semibold text-sky-300 underline">Open image source ↗</a>}</div>}
           {showHeartBurst ? (
             <motion.div
               initial={{ opacity: 0, scale: 0.6 }}

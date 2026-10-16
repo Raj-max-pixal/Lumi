@@ -8,7 +8,8 @@ import { LumiViewer } from "@/components/AuthPanel";
 import { createNotification } from "@/lib/social-firebase";
 import { DEVELOPER_TOPICS } from "@/lib/developer-topics";
 import { firebaseErrorMessage } from "@/lib/firebase-errors";
-import { isSafeUrl, youtubeVideoId } from "@/lib/hackathon";
+import { youtubeVideoId } from "@/lib/hackathon";
+import { normalizeExternalImageUrl } from "@/lib/media";
 
 export default function PostComposer({ viewer, isFocusMode = false }: { viewer: LumiViewer | null; isFocusMode?: boolean }) {
   const [caption, setCaption] = useState("");
@@ -27,14 +28,15 @@ export default function PostComposer({ viewer, isFocusMode = false }: { viewer: 
     if (!caption.trim() && !imageUrl.trim() && !videoUrl.trim()) { setStatus("Add a caption or a media link before sharing."); return; }
     if (!topic) { setStatus("Choose the developer topic this post teaches or explores."); return; }
     if (imageUrl.trim() && videoUrl.trim()) { setStatus("Use one image or YouTube link per post."); return; }
-    if ((imageUrl.trim() && !isSafeUrl(imageUrl.trim())) || (videoUrl.trim() && !youtubeVideoId(videoUrl.trim()))) { setStatus("Use an HTTPS image URL or a supported public YouTube video URL."); return; }
+    const normalizedImageUrl = imageUrl.trim() ? normalizeExternalImageUrl(imageUrl) : "";
+    if ((imageUrl.trim() && !normalizedImageUrl) || (videoUrl.trim() && !youtubeVideoId(videoUrl.trim()))) { setStatus("Use an HTTPS image URL or a supported public YouTube video URL."); return; }
     if (videoUrl.trim() && !caption.trim()) { setStatus("Add a caption explaining what students will learn from this reel."); return; }
 
     setIsPosting(true); setStatus("");
     try {
       await set(push(ref(realtimeDb, "community/posts")), {
         authorId: viewer.id, authorName: viewer.name, authorAvatar: viewer.avatar,
-        caption: caption.trim(), imageUrl: imageUrl.trim(), videoUrl: videoUrl.trim(),
+        caption: caption.trim(), imageUrl: normalizedImageUrl, videoUrl: videoUrl.trim(),
         createdAt: Date.now(), likes: 0, commentsCount: 0, shares: 0, savedCount: 0,
         tags: [topic], likedBy: {}, savedBy: {}, comments: {}
       });
@@ -51,7 +53,7 @@ export default function PostComposer({ viewer, isFocusMode = false }: { viewer: 
       <textarea maxLength={5000} value={caption} onChange={(event) => setCaption(event.target.value)} placeholder="Share what you built, learned, or want to teach other developers..." className={`min-h-28 ${field}`} />
       <label className="block text-sm font-medium">Developer topic<select required value={topic} onChange={(event) => setTopic(event.target.value)} className={`mt-2 ${field}`}><option value="">Choose a topic</option>{DEVELOPER_TOPICS.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
       <div className="grid gap-3 sm:grid-cols-2">
-        <label className="text-sm font-medium">Image URL (optional)<input type="url" maxLength={2048} value={imageUrl} onChange={(event) => setImageUrl(event.target.value)} placeholder="https://your-site.com/image.png" className={`mt-2 ${field}`} /></label>
+        <label className="text-sm font-medium">Image URL (optional)<input type="url" maxLength={5000} value={imageUrl} onChange={(event) => setImageUrl(event.target.value)} placeholder="https://your-site.com/image.png" className={`mt-2 ${field}`} /></label>
         <label className="text-sm font-medium">YouTube reel URL (optional)<input type="url" maxLength={2048} value={videoUrl} onChange={(event) => setVideoUrl(event.target.value)} placeholder="https://youtube.com/shorts/..." className={`mt-2 ${field}`} /></label>
       </div>
       <p className="text-xs opacity-65">Direct photo and video uploads are unavailable. Link media already hosted by you; videos stay on YouTube.</p>

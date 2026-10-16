@@ -70,6 +70,9 @@ test("posts bind author ID; other users can like and comment without editing aut
   await assertFails(set(databaseRef(database("bob"), "community/posts/p1/authorName"), "Bob"));
   await assertSucceeds(set(databaseRef(database("alice"), "community/posts/linked"), { ...post("alice"), imageUrl: "https://example.com/picture.png", videoUrl: "" }));
   await assertFails(set(databaseRef(database("alice"), "community/posts/unsafe"), { ...post("alice"), imageUrl: "javascript:alert(1)" }));
+  await assertFails(set(databaseRef(database("bob"), "community/posts/p1"), null));
+  await assertFails(set(databaseRef(database(), "community/posts/p1"), null));
+  await assertSucceeds(set(databaseRef(database("alice"), "community/posts/p1"), null));
 });
 
 test("projects permit discovery, owner edits, and scoped reactions", async () => {

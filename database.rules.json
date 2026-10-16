@@ -54,7 +54,7 @@
         ".read": true,
         ".indexOn": ["createdAt", "authorId"],
         "$postId": {
-          ".write": "auth !== null && !data.exists() && newData.child('authorId').val() === auth.uid",
+          ".write": "auth !== null && ((!data.exists() && newData.child('authorId').val() === auth.uid) || (data.exists() && !newData.exists() && data.child('authorId').val() === auth.uid))",
           ".validate": "newData.hasChildren(['authorId', 'authorName', 'caption', 'createdAt']) && newData.child('authorName').isString() && newData.child('authorName').val().length <= 100 && newData.child('caption').isString() && newData.child('caption').val().length <= 5000 && newData.child('createdAt').isNumber() && (data.exists() ? newData.child('authorId').val() === data.child('authorId').val() : (newData.child('authorId').val() === auth.uid && !newData.child('likedBy').exists() && !newData.child('savedBy').exists() && !newData.child('comments').exists()))",
           "imageUrl": { ".validate": "newData.isString() && (newData.val() === '' || (newData.val().beginsWith('https://') && newData.val().length <= 2048))" },
           "videoUrl": { ".validate": "newData.isString() && (newData.val() === '' || (newData.val().beginsWith('https://') && newData.val().length <= 2048))" },

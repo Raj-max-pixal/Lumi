@@ -5,7 +5,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useMemo, useState } from "react";
 import { limitToLast, onValue, orderByChild, push, query as dbQuery, ref, remove, set } from "firebase/database";
 import { Bookmark, Filter, Heart, Loader2, MessageCircle, Search, Trash2, X } from "lucide-react";
-import { realtimeDb } from "@/lib/firebase";
+import { auth, realtimeDb } from "@/lib/firebase";
+import { firebaseErrorMessage } from "@/lib/firebase-errors";
 import LumiCard from "@/components/LumiCard";
 import { LumiViewer } from "@/components/AuthPanel";
 import { createNotification, togglePostLike, togglePostSave } from "@/lib/social-firebase";
@@ -53,6 +54,8 @@ export default function CommunityFeed({
   const [retryKey, setRetryKey] = useState(0);
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
+  const [deletingPostId, setDeletingPostId] = useState<string | null>(null);
+  const [postActionError, setPostActionError] = useState("");
 
   useEffect(() => {
     setIsLoading(true);
@@ -217,6 +220,21 @@ export default function CommunityFeed({
     await remove(ref(realtimeDb, `community/posts/${post.id}/comments/${commentId}`));
   }
 
+  async function deletePost(post: CommunityPost) {
+    if (!viewer || auth.currentUser?.uid !== viewer.id || post.authorId !== viewer.id || deletingPostId) return;
+    if (!window.confirm("Delete this post and its comments permanently?")) return;
+    setDeletingPostId(post.id);
+    setPostActionError("");
+    try {
+      await remove(ref(realtimeDb, `community/posts/${post.id}`));
+      setSelectedPostId(null);
+    } catch (error) {
+      setPostActionError(firebaseErrorMessage(error, "Deleting your post"));
+    } finally {
+      setDeletingPostId(null);
+    }
+  }
+
   return (
     <section className="space-y-5">
       <div
@@ -256,6 +274,7 @@ export default function CommunityFeed({
         </div>
       </div>
 
+      {postActionError && <p role="alert" className="rounded-xl border border-rose-400/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-500">{postActionError}</p>}
       {isLoading ? (
         <div className="flex min-h-40 items-center justify-center rounded-[32px] border border-white/10 bg-white/5 backdrop-blur-xl">
           <Loader2 className="h-7 w-7 animate-spin text-lumi-purple" />
@@ -279,7 +298,7 @@ export default function CommunityFeed({
                   >
                     View @{post.authorName}
                   </Link>
-                  <div className={isFocusMode ? "text-xs text-slate-400" : "text-xs text-white/45"}>{new Date(post.createdAt).toLocaleDateString()}</div>
+                  <div className="flex items-center gap-3"><span className={isFocusMode ? "text-xs text-slate-400" : "text-xs text-white/45"}>{new Date(post.createdAt).toLocaleDateString()}</span>{viewer?.id === post.authorId && <button type="button" onClick={() => void deletePost(post)} disabled={Boolean(deletingPostId)} aria-label="Delete your post" className="inline-flex items-center gap-1 text-xs font-semibold text-rose-500 hover:text-rose-400 disabled:opacity-50"><Trash2 className="h-3.5 w-3.5" />{deletingPostId === post.id ? "Deleting…" : "Delete"}</button>}</div>
                 </div>
 
                 <LumiCard
@@ -437,9 +456,7 @@ export default function CommunityFeed({
                   <p className={`text-lg font-semibold ${isFocusMode ? "text-slate-900" : "text-white"}`}>Post details</p>
                   <p className={isFocusMode ? "text-sm text-slate-500" : "text-sm text-white/55"}>@{selectedPost.authorId.slice(0, 8)}</p>
                 </div>
-                <button type="button" onClick={() => setSelectedPostId(null)} className={isFocusMode ? "text-slate-500" : "text-white/60"}>
-                  <X className="h-5 w-5" />
-                </button>
+                <div className="flex items-center gap-3">{viewer?.id === selectedPost.authorId && <button type="button" onClick={() => void deletePost(selectedPost)} disabled={Boolean(deletingPostId)} className="inline-flex items-center gap-1 text-sm font-semibold text-rose-500 disabled:opacity-50"><Trash2 className="h-4 w-4" />Delete post</button>}<button type="button" onClick={() => setSelectedPostId(null)} aria-label="Close post details" className={isFocusMode ? "text-slate-500" : "text-white/60"}><X className="h-5 w-5" /></button></div>
               </div>
 
               <div className="grid max-h-[calc(90vh-73px)] overflow-hidden md:grid-cols-[1.1fr_0.9fr]">
