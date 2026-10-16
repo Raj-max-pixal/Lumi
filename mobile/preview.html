@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>Lumi — Developer Social Network</title>
+  <meta name="description" content="Lumi mobile app preview — the social network for developers" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #050505;
+      --card: #0f0f0f;
+      --surface: #1a1a1a;
+      --border: rgba(255,255,255,0.07);
+      --purple: #A855F7;
+      --purple-dim: rgba(168,85,247,0.12);
+      --cyan: #22D3EE;
+      --text: #F1F5F9;
+      --text-muted: #94A3B8;
+      --text-dim: #475569;
+      --white: #ffffff;
+    }
+    body {
+      background: var(--bg);
+      font-family: 'Inter', sans-serif;
+      color: var(--text);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    /* Phone shell */
+    .phone-wrap {
+      display: flex;
+      gap: 40px;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .phone-shell {
+      width: 375px;
+      height: 812px;
+      background: #000;
+      border-radius: 50px;
+      border: 2px solid rgba(255,255,255,0.12);
+      overflow: hidden;
+      position: relative;
+      box-shadow: 0 40px 80px rgba(168,85,247,0.2), 0 0 0 1px rgba(255,255,255,0.05);
+      flex-shrink: 0;
+    }
+    .notch {
+      position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+      width: 120px; height: 30px; background: #000;
+      border-radius: 0 0 20px 20px; z-index: 100;
+    }
+    .screen { width: 100%; height: 100%; overflow: hidden; position: relative; }
+
+    /* Tabs */
+    .tab-content { display: none; width: 100%; height: 100%; }
+    .tab-content.active { display: block; }
+
+    /* ─── HOME SCREEN ─── */
+    #tab-home {
+      background: var(--bg);
+      overflow-y: auto;
+      padding-bottom: 80px;
+    }
+    .home-header {
+      background: linear-gradient(to bottom, #050505, transparent);
+      padding: 50px 16px 16px;
+      position: sticky; top: 0; z-index: 10;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .home-logo { font-size: 26px; font-weight: 900; background: linear-gradient(135deg, var(--purple), var(--cyan)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .home-actions { display: flex; gap: 12px; }
+    .icon-btn { width: 36px; height: 36px; border-radius: 50%; background: var(--card); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 16px; }
+
+    /* Stories */
+    .stories-row { display: flex; gap: 12px; padding: 8px 16px; overflow-x: auto; scrollbar-width: none; }
+    .stories-row::-webkit-scrollbar { display: none; }
+    .story-item { display: flex; flex-direction: column; align-items: center; gap: 4px; flex-shrink: 0; cursor: pointer; }
+    .story-avatar-wrap { width: 60px; height: 60px; border-radius: 50%; padding: 2px; background: linear-gradient(135deg, var(--purple), var(--cyan)); }
+    .story-avatar-inner { width: 100%; height: 100%; border-radius: 50%; background: var(--card); border: 2px solid var(--bg); overflow: hidden; }
+    .story-avatar-inner img { width: 100%; height: 100%; object-fit: cover; }
+    .story-name { font-size: 10px; color: var(--text-muted); max-width: 60px; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* Post card */
+    .post-card { background: var(--card); border-radius: 20px; margin: 8px 12px; border: 1px solid var(--border); overflow: hidden; }
+    .post-header { display: flex; align-items: center; gap: 10px; padding: 12px 14px 8px; }
+    .post-avatar { width: 38px; height: 38px; border-radius: 50%; object-fit: cover; border: 2px solid var(--purple-dim); }
+    .post-author-name { font-size: 13px; font-weight: 700; color: var(--text); }
+    .post-author-time { font-size: 11px; color: var(--text-dim); }
+    .post-tag { margin-left: auto; background: var(--purple-dim); color: var(--purple); font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 99px; border: 1px solid var(--purple); }
+    .post-caption { padding: 0 14px 10px; font-size: 13px; color: var(--text); line-height: 1.6; }
+    .post-code { background: #0a0a0a; border-radius: 10px; margin: 0 14px 10px; padding: 12px; font-family: 'Courier New', monospace; font-size: 11px; color: #A78BFA; border: 1px solid rgba(168,85,247,0.15); overflow-x: auto; }
+    .post-image { width: 100%; max-height: 220px; object-fit: cover; }
+    .post-actions { display: flex; align-items: center; gap: 16px; padding: 10px 14px; border-top: 1px solid var(--border); }
+    .post-action { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--text-muted); cursor: pointer; }
+    .post-action.liked { color: #EF4444; }
+    .post-action span { font-size: 16px; }
+
+    /* ─── EXPLORE SCREEN ─── */
+    #tab-explore { background: var(--bg); overflow-y: auto; padding-bottom: 80px; }
+    .explore-header { padding: 50px 16px 16px; }
+    .explore-title { font-size: 22px; font-weight: 800; color: var(--white); margin-bottom: 12px; }
+    .search-bar { display: flex; align-items: center; gap: 8px; background: var(--card); border: 1px solid var(--border); border-radius: 99px; padding: 10px 16px; }
+    .search-bar input { background: none; border: none; outline: none; color: var(--text); font-size: 13px; flex: 1; font-family: inherit; }
+    .search-bar input::placeholder { color: var(--text-dim); }
+    .cats-row { display: flex; gap: 8px; padding: 8px 16px; overflow-x: auto; scrollbar-width: none; }
+    .cats-row::-webkit-scrollbar { display: none; }
+    .cat-chip { padding: 6px 14px; border-radius: 99px; background: var(--card); border: 1px solid var(--border); font-size: 11px; color: var(--text-muted); font-weight: 600; white-space: nowrap; cursor: pointer; }
+    .cat-chip.active { background: var(--purple-dim); border-color: var(--purple); color: var(--purple); }
+    .explore-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 8px 12px; }
+    .explore-card { background: var(--card); border-radius: 16px; overflow: hidden; border: 1px solid var(--border); cursor: pointer; }
+    .explore-card-img { width: 100%; height: 110px; object-fit: cover; background: linear-gradient(135deg, #1a0533, #241b38); display: flex; align-items: center; justify-content: center; font-size: 32px; }
+    .explore-card-body { padding: 10px; }
+    .explore-card-title { font-size: 12px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+    .explore-card-author { font-size: 10px; color: var(--text-dim); }
+
+    /* ─── AI LAB SCREEN ─── */
+    #tab-ai { background: var(--bg); overflow-y: auto; padding-bottom: 80px; }
+    .ai-header { background: linear-gradient(to bottom, #1a0533, transparent); padding: 50px 16px 20px; }
+    .ai-header-row { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+    .ai-icon { width: 48px; height: 48px; border-radius: 14px; background: linear-gradient(135deg, var(--purple), var(--cyan)); display: flex; align-items: center; justify-content: center; font-size: 22px; }
+    .ai-title { font-size: 22px; font-weight: 800; color: var(--white); }
+    .ai-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+    .personality-row { display: flex; background: var(--card); border-radius: 12px; padding: 3px; gap: 3px; }
+    .pers-btn { flex: 1; text-align: center; padding: 8px; border-radius: 10px; font-size: 11px; font-weight: 700; color: var(--text-muted); cursor: pointer; }
+    .pers-btn.active { background: var(--purple); color: white; }
+    .ai-content { padding: 12px; display: flex; flex-direction: column; gap: 12px; }
+    .ai-chat-card { background: var(--card); border-radius: 20px; padding: 14px; border: 1px solid var(--border); }
+    .ai-chat-label { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+    .ai-chat-input { background: var(--surface); border-radius: 10px; border: 1px solid var(--border); padding: 10px; color: var(--text); font-size: 12px; width: 100%; min-height: 70px; resize: none; font-family: inherit; }
+    .ai-ask-btn { margin-top: 8px; background: linear-gradient(135deg, var(--purple), #7C3AED); color: white; border: none; border-radius: 99px; padding: 11px 20px; font-weight: 700; font-size: 13px; cursor: pointer; width: 100%; }
+    .ai-output { background: var(--card); border-radius: 16px; border: 1px solid var(--border); padding: 14px; font-size: 12px; color: var(--text); line-height: 1.7; }
+    .ai-tools-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .ai-tool { background: var(--card); border-radius: 14px; padding: 12px; border: 1px solid var(--border); cursor: pointer; }
+    .ai-tool-icon { font-size: 22px; margin-bottom: 6px; }
+    .ai-tool-title { font-size: 12px; font-weight: 700; color: var(--text); }
+    .ai-tool-desc { font-size: 10px; color: var(--text-dim); margin-top: 2px; }
+
+    /* ─── HACKATHON SCREEN ─── */
+    #tab-hack { background: var(--bg); overflow-y: auto; padding-bottom: 80px; }
+    .hack-header { background: linear-gradient(to bottom, #0b1222, transparent); padding: 50px 16px 16px; }
+    .hack-title { font-size: 22px; font-weight: 800; color: var(--white); }
+    .hack-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+    .hack-stats { display: flex; gap: 12px; margin: 12px 0; }
+    .hack-stat { background: rgba(255,255,255,0.05); border-radius: 10px; padding: 8px 14px; }
+    .hack-stat-val { font-size: 18px; font-weight: 800; color: var(--white); }
+    .hack-stat-label { font-size: 10px; color: var(--text-dim); }
+    .project-card { background: var(--card); border-radius: 20px; margin: 8px 12px; border: 1px solid var(--border); overflow: hidden; }
+    .project-img { height: 130px; background: linear-gradient(135deg, #1a3653, #49346b); display: flex; align-items: center; justify-content: center; font-size: 40px; position: relative; }
+    .project-cat-badge { position: absolute; top: 10px; left: 10px; background: rgba(34,211,238,0.2); color: var(--cyan); font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 99px; }
+    .project-body { padding: 12px; }
+    .project-title { font-size: 14px; font-weight: 800; color: var(--text); }
+    .project-tagline { font-size: 11px; color: var(--text-muted); margin-top: 3px; line-height: 1.5; }
+    .tech-row { display: flex; gap: 6px; margin: 8px 0; flex-wrap: wrap; }
+    .tech-badge { background: var(--surface); color: var(--text-muted); font-size: 10px; font-weight: 500; padding: 3px 8px; border-radius: 99px; }
+    .project-author-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+    .project-author-img { width: 22px; height: 22px; border-radius: 50%; object-fit: cover; }
+    .project-author-name { font-size: 11px; color: var(--text-muted); font-weight: 600; }
+    .hack-badge { display: flex; align-items: center; gap: 4px; background: rgba(251,191,36,0.1); padding: 2px 7px; border-radius: 99px; font-size: 10px; color: #FBBF24; font-weight: 600; margin-left: auto; }
+    .project-links { display: flex; gap: 8px; margin-top: 10px; }
+    .proj-link-btn { display: flex; align-items: center; gap: 5px; padding: 6px 12px; background: var(--surface); border-radius: 99px; font-size: 11px; color: var(--text); border: 1px solid var(--border); cursor: pointer; font-weight: 600; }
+
+    /* ─── PROFILE SCREEN ─── */
+    #tab-profile { background: var(--bg); overflow-y: auto; padding-bottom: 80px; }
+    .profile-cover { background: linear-gradient(to bottom, #42243f, #241b38, #18122d, #050505); padding: 50px 16px 24px; }
+    .profile-signout { text-align: right; margin-bottom: 8px; font-size: 18px; cursor: pointer; color: var(--text-muted); }
+    .profile-avatar { width: 88px; height: 88px; border-radius: 50%; object-fit: cover; border: 3px solid var(--purple); margin-bottom: 12px; }
+    .profile-name { font-size: 22px; font-weight: 800; color: var(--white); }
+    .profile-handle { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+    .profile-bio { font-size: 12px; color: var(--text); margin-top: 10px; line-height: 1.6; opacity: 0.85; }
+    .skills-row { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+    .skill-chip { background: var(--purple-dim); color: var(--purple); font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 99px; border: 1px solid var(--purple); }
+    .profile-stats { display: flex; gap: 32px; margin-top: 18px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.08); }
+    .profile-stat { text-align: center; }
+    .profile-stat-val { font-size: 20px; font-weight: 800; color: var(--white); }
+    .profile-stat-label { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+    .edit-profile-btn { display: flex; align-items: center; gap: 6px; background: var(--purple-dim); color: var(--purple); font-size: 12px; font-weight: 700; padding: 8px 16px; border-radius: 99px; margin-top: 14px; cursor: pointer; border: none; font-family: inherit; }
+    .profile-tabs { display: flex; border-bottom: 1px solid var(--border); }
+    .profile-tab { flex: 1; text-align: center; padding: 14px; font-size: 12px; font-weight: 600; color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent; }
+    .profile-tab.active { color: var(--purple); border-bottom-color: var(--purple); }
+    .posts-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; padding: 2px; }
+    .post-thumb { aspect-ratio: 1; background: var(--card); display: flex; align-items: center; justify-content: center; font-size: 24px; }
+
+    /* ─── BOTTOM TAB BAR ─── */
+    .bottom-tabs {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      background: rgba(5,5,5,0.97);
+      border-top: 1px solid rgba(255,255,255,0.06);
+      display: flex; padding: 10px 0 24px;
+    }
+    .tab-btn {
+      flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px;
+      cursor: pointer; padding: 4px 0;
+    }
+    .tab-btn .tab-icon { font-size: 22px; opacity: 0.4; }
+    .tab-btn .tab-label { font-size: 10px; color: var(--text-dim); font-weight: 500; }
+    .tab-btn.active .tab-icon { opacity: 1; }
+    .tab-btn.active .tab-label { color: var(--purple); font-weight: 700; }
+    .tab-btn.active[data-tab="ai"] .ai-pill {
+      background: var(--purple);
+    }
+    .ai-pill {
+      width: 40px; height: 40px; border-radius: 50%;
+      background: var(--purple-dim); border: 1px solid var(--purple);
+      display: flex; align-items: center; justify-content: center; font-size: 20px;
+      margin-bottom: -2px;
+    }
+
+    /* Right panel */
+    .info-panel {
+      max-width: 320px;
+      display: flex; flex-direction: column; gap: 20px;
+    }
+    .info-card {
+      background: var(--card); border-radius: 20px; padding: 24px;
+      border: 1px solid var(--border);
+    }
+    .info-card h2 { font-size: 20px; font-weight: 800; color: var(--white); margin-bottom: 12px; }
+    .info-card p { font-size: 13px; color: var(--text-muted); line-height: 1.7; }
+    .feature-list { list-style: none; display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+    .feature-list li { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text); }
+    .feature-list li span.icon { font-size: 18px; }
+    .qr-placeholder { background: white; border-radius: 12px; width: 120px; height: 120px; margin: 16px auto 0; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #333; text-align: center; padding: 10px; }
+    .run-cmd { background: #0a0a0a; border-radius: 10px; padding: 12px 14px; font-family: monospace; font-size: 12px; color: var(--cyan); border: 1px solid rgba(34,211,238,0.2); margin-top: 12px; }
+    .badge { display: inline-block; background: var(--purple-dim); color: var(--purple); font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 99px; border: 1px solid var(--purple); }
+
+    @media (max-width: 700px) {
+      .phone-shell { width: 100%; max-width: 375px; height: 700px; }
+      .info-panel { max-width: 100%; }
+    }
+  </style>
+</head>
+<body>
+<div class="phone-wrap">
+  <!-- Phone -->
+  <div class="phone-shell">
+    <div class="notch"></div>
+    <div class="screen">
+
+      <!-- HOME -->
+      <div class="tab-content active" id="tab-home">
+        <div class="home-header">
+          <div class="home-logo">Lumi</div>
+          <div class="home-actions">
+            <div class="icon-btn">🔔</div>
+            <div class="icon-btn">✉️</div>
+          </div>
+        </div>
+
+        <!-- Stories -->
+        <div class="stories-row">
+          <div class="story-item">
+            <div class="story-avatar-wrap">
+              <div class="story-avatar-inner">
+                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=you" />
+              </div>
+            </div>
+            <div class="story-name">Your Story</div>
+          </div>
+          <div class="story-item">
+            <div class="story-avatar-wrap">
+              <div class="story-avatar-inner">
+                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=alex" />
+              </div>
+            </div>
+            <div class="story-name">alex_dev</div>
+          </div>
+          <div class="story-item">
+            <div class="story-avatar-wrap">
+              <div class="story-avatar-inner">
+                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=sara" />
+              </div>
+            </div>
+            <div class="story-name">sara.codes</div>
+          </div>
+          <div class="story-item">
+            <div class="story-avatar-wrap">
+              <div class="story-avatar-inner">
+                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=raj" />
+              </div>
+            </div>
+            <div class="story-name">raj_x_20</div>
+          </div>
+          <div class="story-item">
+            <div class="story-avatar-wrap">
+              <div class="story-avatar-inner">
+                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=priya" />
+              </div>
+            </div>
+            <div class="story-name">priya.io</div>
+          </div>
+        </div>
+
+        <!-- Post 1 -->
+        <div class="post-card">
+          <div class="post-header">
+            <img class="post-avatar" src="https://api.dicebear.com/7.x/avataaars/svg?seed=alex" />
+            <div>
+              <div class="post-author-name">alex_dev</div>
+              <div class="post-author-time">2 min ago</div>
+            </div>
+            <div class="post-tag">React</div>
+          </div>
+          <div class="post-caption">Just shipped my new portfolio with Next.js + Three.js. The 3D background took 3 days but totally worth it 🔥</div>
+          <div class="post-code">const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(75);
+renderer.render(scene, camera);</div>
+          <div class="post-actions">
+            <div class="post-action liked"><span>❤️</span> 142</div>
+            <div class="post-action"><span>💬</span> 23</div>
+            <div class="post-action"><span>🔖</span> Save</div>
+            <div class="post-action" style="margin-left:auto"><span>↗️</span></div>
+          </div>
+        </div>
+
+        <!-- Post 2 -->
+        <div class="post-card">
+          <div class="post-header">
+            <img class="post-avatar" src="https://api.dicebear.com/7.x/avataaars/svg?seed=priya" />
+            <div>
+              <div class="post-author-name">priya.io</div>
+              <div class="post-author-time">14 min ago</div>
+            </div>
+            <div class="post-tag">AI/ML</div>
+          </div>
+          <div class="post-caption">Fine-tuned GPT-4 on my own codebase and now it writes code exactly like me. A little scary ngl 😅 #AI #DevLife</div>
+          <div class="post-actions">
+            <div class="post-action"><span>🤍</span> 89</div>
+            <div class="post-action"><span>💬</span> 17</div>
+            <div class="post-action"><span>🔖</span> Save</div>
+            <div class="post-action" style="margin-left:auto"><span>↗️</span></div>
+          </div>
+        </div>
+
+        <!-- Post 3 -->
+        <div class="post-card">
+          <div class="post-header">
+            <img class="post-avatar" src="https://api.dicebear.com/7.x/avataaars/svg?seed=raj" />
+            <div>
+              <div class="post-author-name">raj_x_20</div>
+              <div class="post-author-time">1 hr ago</div>
+            </div>
+            <div class="post-tag">Open Source</div>
+          </div>
+          <div class="post-caption">Just hit 1,000 GitHub stars on my open-source project 🌟 From 0 to 1k in 3 months. Consistency > everything</div>
+          <div class="post-actions">
+            <div class="post-action liked"><span>❤️</span> 312</div>
+            <div class="post-action"><span>💬</span> 54</div>
+            <div class="post-action"><span>🔖</span> Save</div>
+            <div class="post-action" style="margin-left:auto"><span>↗️</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- EXPLORE -->
+      <div class="tab-content" id="tab-explore">
+        <div class="explore-header">
+          <div class="explore-title">Explore</div>
+          <div class="search-bar">
+            <span>🔍</span>
+            <input type="text" placeholder="Search developers, posts, projects..." />
+          </div>
+        </div>
+        <div class="cats-row">
+          <div class="cat-chip active">All</div>
+          <div class="cat-chip">React</div>
+          <div class="cat-chip">Python</div>
+          <div class="cat-chip">AI/ML</div>
+          <div class="cat-chip">Mobile</div>
+          <div class="cat-chip">Cloud</div>
+          <div class="cat-chip">Open Source</div>
+        </div>
+        <div class="explore-grid">
+          <div class="explore-card">
+            <div class="explore-card-img">⚡</div>
+            <div class="explore-card-body">
+              <div class="explore-card-title">Built a real-time collab editor</div>
+              <div class="explore-card-author">@alex_dev · 2h ago</div>
+            </div>
+          </div>
+          <div class="explore-card">
+            <div class="explore-card-img">🤖</div>
+            <div class="explore-card-body">
+              <div class="explore-card-title">Fine-tuned LLM on codebase</div>
+              <div class="explore-card-author">@priya.io · 5h ago</div>
+            </div>
+          </div>
+          <div class="explore-card">
+            <div class="explore-card-img">🚀</div>
+            <div class="explore-card-body">
+              <div class="explore-card-title">1000 GitHub stars milestone</div>
+              <div class="explore-card-author">@raj_x_20 · 1d ago</div>
+            </div>
+          </div>
+          <div class="explore-card">
+            <div class="explore-card-img">🔐</div>
+            <div class="explore-card-body">
+              <div class="explore-card-title">Zero-knowledge auth system</div>
+              <div class="explore-card-author">@sara.codes · 3h ago</div>
+            </div>
+          </div>
+          <div class="explore-card">
+            <div class="explore-card-img">📱</div>
+            <div class="explore-card-body">
+              <div class="explore-card-title">React Native cross-platform</div>
+              <div class="explore-card-author">@dev_miko · 6h ago</div>
+            </div>
+          </div>
+          <div class="explore-card">
+            <div class="explore-card-img">☁️</div>
+            <div class="explore-card-body">
+              <div class="explore-card-title">AWS serverless architecture</div>
+              <div class="explore-card-author">@cloudninja · 8h ago</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- AI LAB -->
+      <div class="tab-content" id="tab-ai">
+        <div class="ai-header">
+          <div class="ai-header-row">
+            <div class="ai-icon">✨</div>
+            <div>
+              <div class="ai-title">Lumi AI Lab</div>
+              <div class="ai-sub">Developer AI tools & assistant</div>
+            </div>
+          </div>
+          <div class="personality-row">
+            <div class="pers-btn active" onclick="setPers(this)">🎓 Mentor</div>
+            <div class="pers-btn" onclick="setPers(this)">💪 Coach</div>
+            <div class="pers-btn" onclick="setPers(this)">🔥 Savage</div>
+          </div>
+        </div>
+        <div class="ai-content">
+          <div class="ai-chat-card">
+            <div class="ai-chat-label">✨ Ask Lumi AI</div>
+            <textarea class="ai-chat-input" id="ai-input" placeholder="Ask anything about dev, growth, code...">How do I grow my developer audience on Lumi?</textarea>
+            <button class="ai-ask-btn" onclick="askAI()">✨ Ask Lumi AI</button>
+          </div>
+          <div class="ai-output" id="ai-output">
+            🤖 Your Lumi AI workspace is ready! Ask anything or tap a tool below.
+          </div>
+          <div style="font-size:13px;font-weight:700;color:var(--text)">AI Developer Tools</div>
+          <div class="ai-tools-grid">
+            <div class="ai-tool" onclick="runTool('Post Caption','Write a viral dev caption for my latest project')">
+              <div class="ai-tool-icon">✍️</div>
+              <div class="ai-tool-title">Post Caption</div>
+              <div class="ai-tool-desc">Generate viral dev captions</div>
+            </div>
+            <div class="ai-tool" onclick="runTool('Hashtags','Best hashtags for my dev post')">
+              <div class="ai-tool-icon">🏷️</div>
+              <div class="ai-tool-title">Hashtags</div>
+              <div class="ai-tool-desc">Best tags for your post</div>
+            </div>
+            <div class="ai-tool" onclick="runTool('Dev Bio','Write a professional developer bio for my Lumi profile')">
+              <div class="ai-tool-icon">👤</div>
+              <div class="ai-tool-title">Dev Bio</div>
+              <div class="ai-tool-desc">Write your developer bio</div>
+            </div>
+            <div class="ai-tool" onclick="runTool('Viral Ideas','Give me 5 viral content ideas for a developer')">
+              <div class="ai-tool-icon">⚡</div>
+              <div class="ai-tool-title">Viral Ideas</div>
+              <div class="ai-tool-desc">Content ideas that go viral</div>
+            </div>
+            <div class="ai-tool" onclick="runTool('Growth Tips','How to grow my developer following on Lumi')">
+              <div class="ai-tool-icon">📈</div>
+              <div class="ai-tool-title">Growth Tips</div>
+              <div class="ai-tool-desc">Grow your dev following</div>
+            </div>
+            <div class="ai-tool" onclick="runTool('Job Prep','Help me prepare for a full-stack developer interview')">
+              <div class="ai-tool-icon">💼</div>
+              <div class="ai-tool-title">Job Prep</div>
+              <div class="ai-tool-desc">Resume & interview help</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- HACKATHON -->
+      <div class="tab-content" id="tab-hack">
+        <div class="hack-header">
+          <div class="hack-title">Hackathon 🚀</div>
+          <div class="hack-sub">Student project showcase</div>
+          <div class="hack-stats">
+            <div class="hack-stat"><div class="hack-stat-val">24</div><div class="hack-stat-label">Projects</div></div>
+            <div class="hack-stat"><div class="hack-stat-val">18</div><div class="hack-stat-label">Builders</div></div>
+          </div>
+        </div>
+
+        <div class="project-card">
+          <div class="project-img">🤖<div class="project-cat-badge">AI / ML</div></div>
+          <div class="project-body">
+            <div class="project-title">CodeMentor AI</div>
+            <div class="project-tagline">AI-powered code review and mentoring for junior devs</div>
+            <div class="tech-row">
+              <div class="tech-badge">Python</div>
+              <div class="tech-badge">OpenAI</div>
+              <div class="tech-badge">React</div>
+              <div class="tech-badge">Firebase</div>
+            </div>
+            <div class="project-author-row">
+              <img class="project-author-img" src="https://api.dicebear.com/7.x/avataaars/svg?seed=alex" />
+              <div class="project-author-name">alex_dev</div>
+              <div class="hack-badge">🏆 Google SWE 2024</div>
+            </div>
+            <div class="project-links">
+              <div class="proj-link-btn">📦 GitHub</div>
+              <div class="proj-link-btn" style="border-color:var(--purple);color:var(--purple)">🌐 Live Demo</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="project-card">
+          <div class="project-img">🔐<div class="project-cat-badge">Cybersecurity</div></div>
+          <div class="project-body">
+            <div class="project-title">SafeKey Vault</div>
+            <div class="project-tagline">Zero-knowledge password manager with biometric auth</div>
+            <div class="tech-row">
+              <div class="tech-badge">Rust</div>
+              <div class="tech-badge">WebAssembly</div>
+              <div class="tech-badge">React Native</div>
+            </div>
+            <div class="project-author-row">
+              <img class="project-author-img" src="https://api.dicebear.com/7.x/avataaars/svg?seed=sara" />
+              <div class="project-author-name">sara.codes</div>
+              <div class="hack-badge">🏆 HackMIT 2024</div>
+            </div>
+            <div class="project-links">
+              <div class="proj-link-btn">📦 GitHub</div>
+              <div class="proj-link-btn" style="border-color:var(--purple);color:var(--purple)">🌐 Live Demo</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PROFILE -->
+      <div class="tab-content" id="tab-profile">
+        <div class="profile-cover">
+          <div class="profile-signout">⬆️</div>
+          <img class="profile-avatar" src="https://api.dicebear.com/7.x/avataaars/svg?seed=raj" />
+          <div style="display:flex;align-items:center;gap:10px">
+            <div class="profile-name">Raj Saranya</div>
+            <span>🔗</span><span>📦</span>
+          </div>
+          <div class="profile-handle">@raj_x_20</div>
+          <div class="profile-bio">Full-stack developer | Building Lumi 🚀 | Open to collabs | React · Firebase · Python</div>
+          <div class="skills-row">
+            <div class="skill-chip">React</div>
+            <div class="skill-chip">Firebase</div>
+            <div class="skill-chip">Python</div>
+            <div class="skill-chip">Next.js</div>
+          </div>
+          <div class="profile-stats">
+            <div class="profile-stat"><div class="profile-stat-val">42</div><div class="profile-stat-label">Posts</div></div>
+            <div class="profile-stat"><div class="profile-stat-val">1.2K</div><div class="profile-stat-label">Followers</div></div>
+            <div class="profile-stat"><div class="profile-stat-val">318</div><div class="profile-stat-label">Following</div></div>
+          </div>
+          <button class="edit-profile-btn">✏️ Edit Profile</button>
+        </div>
+        <div class="profile-tabs">
+          <div class="profile-tab active">Posts</div>
+          <div class="profile-tab">Projects</div>
+          <div class="profile-tab">About</div>
+        </div>
+        <div class="posts-grid">
+          <div class="post-thumb">⚡</div>
+          <div class="post-thumb">🤖</div>
+          <div class="post-thumb">🔥</div>
+          <div class="post-thumb">🚀</div>
+          <div class="post-thumb">💡</div>
+          <div class="post-thumb">🌐</div>
+        </div>
+      </div>
+
+      <!-- BOTTOM TAB BAR -->
+      <div class="bottom-tabs">
+        <div class="tab-btn active" data-tab="home" onclick="switchTab('home')">
+          <div class="tab-icon">🏠</div>
+          <div class="tab-label">Home</div>
+        </div>
+        <div class="tab-btn" data-tab="explore" onclick="switchTab('explore')">
+          <div class="tab-icon">🧭</div>
+          <div class="tab-label">Explore</div>
+        </div>
+        <div class="tab-btn" data-tab="ai" onclick="switchTab('ai')">
+          <div class="ai-pill">✨</div>
+          <div class="tab-label">AI Lab</div>
+        </div>
+        <div class="tab-btn" data-tab="hack" onclick="switchTab('hack')">
+          <div class="tab-icon">🚀</div>
+          <div class="tab-label">Build</div>
+        </div>
+        <div class="tab-btn" data-tab="profile" onclick="switchTab('profile')">
+          <div class="tab-icon">👤</div>
+          <div class="tab-label">Me</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Info Panel -->
+  <div class="info-panel">
+    <div class="info-card">
+      <h2>📱 Lumi Mobile App</h2>
+      <p>The developer social network — now as a fully functional React Native / Expo app.</p>
+      <ul class="feature-list">
+        <li><span class="icon">🏠</span> Home Feed with real-time posts & stories</li>
+        <li><span class="icon">🔍</span> Explore grid with search & filters</li>
+        <li><span class="icon">✨</span> AI Lab — 8 dev tools + chat assistant</li>
+        <li><span class="icon">🚀</span> Hackathon project showcase</li>
+        <li><span class="icon">💬</span> Real-time direct messaging</li>
+        <li><span class="icon">👤</span> Developer profile with edit mode</li>
+        <li><span class="icon">🎬</span> TikTok-style Dev Clips screen</li>
+        <li><span class="icon">🔥</span> Same Firebase as web — same accounts!</li>
+      </ul>
+    </div>
+
+    <div class="info-card">
+      <h2>🚀 Run on Your Phone</h2>
+      <p>Install <strong>Expo Go</strong> from Play Store / App Store, then run:</p>
+      <div class="run-cmd">cd d:\lumi\mobile<br>npx expo start --lan</div>
+      <p style="margin-top:12px">Scan the QR code in the terminal with Expo Go. Your phone and PC must be on the <strong>same WiFi</strong>.</p>
+    </div>
+
+    <div class="info-card">
+      <h2>📦 Build APK</h2>
+      <p>To build a standalone Android APK:</p>
+      <div class="run-cmd">npx expo run:android</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function switchTab(tab) {
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('active'));
+    document.getElementById('tab-' + tab).classList.add('active');
+    document.querySelector('[data-tab="' + tab + '"]').classList.add('active');
+  }
+
+  function setPers(el) {
+    document.querySelectorAll('.pers-btn').forEach(b => b.classList.remove('active'));
+    el.classList.add('active');
+  }
+
+  const AI_RESPONSES = {
+    default: (q) => `🤖 Lumi AI (Mentor): Great question about "${q}"!\n\n1. Start by defining clear goals\n2. Build in public — share your progress daily\n3. Engage with the dev community consistently\n4. Use Lumi's AI tools to optimize your content\n5. Cross-post to LinkedIn and Twitter\n\nConsistency beats virality every time! 🚀`,
+    growth: () => `📈 Growth Tip (Mentor):\n\n• Post at 7–9pm in your timezone\n• Reply to every comment within the first hour\n• Use 5–7 relevant hashtags\n• Share your process, not just results\n• Add value in others' comments first\n\nBuilding in public on Lumi = fastest growth path! 🌱`,
+    caption: () => `✍️ Caption (Mentor):\n\n"Shipped another feature at 2am. Sleep is overrated when you're building something this good 🔥\n\n#DevLife #Lumi #BuildInPublic #CodeNewbie"\n\nTry hooking with a bold statement, then add context! 📌`,
+  };
+
+  function askAI() {
+    const input = document.getElementById('ai-input').value.toLowerCase();
+    const output = document.getElementById('ai-output');
+    output.style.opacity = '0.5';
+    output.textContent = '⏳ Thinking...';
+    setTimeout(() => {
+      let response;
+      if (input.includes('grow') || input.includes('audience') || input.includes('followers')) {
+        response = AI_RESPONSES.growth();
+      } else {
+        response = AI_RESPONSES.default(document.getElementById('ai-input').value);
+      }
+      output.textContent = response;
+      output.style.opacity = '1';
+    }, 1200);
+  }
+
+  function runTool(title, prompt) {
+    document.getElementById('ai-input').value = prompt;
+    document.getElementById('ai-output').textContent = `⏳ Running ${title}...`;
+    setTimeout(() => {
+      document.getElementById('ai-output').textContent = AI_RESPONSES.default(prompt);
+    }, 1000);
+  }
+</script>
+</body>
+</html>

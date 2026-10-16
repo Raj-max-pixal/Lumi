@@ -1,255 +1,164 @@
-import { StatusBar } from "expo-status-bar";
-import { useMemo, useState } from "react";
-import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
+import 'react-native-gesture-handler';
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  StyleSheet,
+  StatusBar,
+  ActivityIndicator,
+  Text,
+  Platform,
+} from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 
-type TabId = "home" | "explore" | "snaps" | "chat" | "profile";
-type ThemeId = "nightNeon" | "oceanGlass" | "midnightBlue";
+// Context
+import { AuthProvider, useAuth } from './src/context/AuthContext';
 
-const tabs: Array<{ id: TabId; label: string }> = [
-  { id: "home", label: "Home" },
-  { id: "explore", label: "Explore" },
-  { id: "snaps", label: "Snaps" },
-  { id: "chat", label: "Chat" },
-  { id: "profile", label: "Profile" }
-];
+// Screens
+import HomeScreen from './src/screens/HomeScreen';
+import ExploreScreen from './src/screens/ExploreScreen';
+import AILabScreen from './src/screens/AILabScreen';
+import HackathonScreen from './src/screens/HackathonScreen';
+import ChatScreen from './src/screens/ChatScreen';
+import ProfileScreen from './src/screens/ProfileScreen';
+import DevClipsScreen from './src/screens/DevClipsScreen';
+import AuthScreen from './src/screens/AuthScreen';
 
-const themes = {
-  nightNeon: {
-    bg: "#050505",
-    panel: "rgba(255,255,255,0.06)",
-    accent: "#A855F7",
-    text: "#FFFFFF",
-    subtext: "rgba(255,255,255,0.72)"
-  },
-  oceanGlass: {
-    bg: "#dff6fc",
-    panel: "#ffffff",
-    accent: "#6bc9ea",
-    text: "#0f172a",
-    subtext: "#64748b"
-  },
-  midnightBlue: {
-    bg: "#08111f",
-    panel: "rgba(255,255,255,0.05)",
-    accent: "#3b82f6",
-    text: "#FFFFFF",
-    subtext: "rgba(255,255,255,0.70)"
-  }
-} as const;
+// Components
+import BottomTabBar from './src/components/BottomTabBar';
 
-function SectionCard({
-  title,
-  body,
-  theme
-}: {
-  title: string;
-  body: string;
-  theme: (typeof themes)[ThemeId];
-}) {
+// Theme
+import { COLORS } from './src/config/theme';
+
+type Tab = 'Home' | 'Explore' | 'AILab' | 'Hackathon' | 'Chat' | 'Profile';
+
+// ─── Splash Screen ───────────────────────────────────────────────────────────
+function SplashScreen() {
   return (
-    <View style={[styles.card, { backgroundColor: theme.panel }]}>
-      <Text style={[styles.cardTitle, { color: theme.text }]}>{title}</Text>
-      <Text style={[styles.cardBody, { color: theme.subtext }]}>{body}</Text>
-    </View>
+    <LinearGradient
+      colors={['#1a0533', '#0d0521', '#050505']}
+      style={styles.splash}
+    >
+      <LinearGradient
+        colors={[COLORS.purple, COLORS.cyan]}
+        style={styles.splashIcon}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
+        <Ionicons name="code-slash" size={48} color="#fff" />
+      </LinearGradient>
+      <Text style={styles.splashTitle}>Lumi</Text>
+      <Text style={styles.splashTagline}>For Developers, By Developers</Text>
+      <ActivityIndicator
+        size="small"
+        color={COLORS.purple}
+        style={{ marginTop: 48 }}
+      />
+    </LinearGradient>
   );
 }
 
-export default function App() {
-  const [activeTab, setActiveTab] = useState<TabId>("home");
-  const [themeId, setThemeId] = useState<ThemeId>("nightNeon");
+// ─── Main App Shell ──────────────────────────────────────────────────────────
+function AppShell() {
+  const { user, isLoading } = useAuth();
+  const [activeTab, setActiveTab] = useState<Tab>('Home');
+  const [showAuth, setShowAuth] = useState(false);
 
-  const theme = themes[themeId];
-
-  const content = useMemo(() => {
-    if (activeTab === "explore") {
-      return [
-        {
-          title: "Trending Creators",
-          body: "Instagram-style discovery grid with creator cards, stories, and category chips."
-        },
-        {
-          title: "Nearby + Location",
-          body: "Maps, local community moments, and regional discovery surfaces."
-        }
-      ];
+  // If user is not signed in and they tap Chat/Profile, show auth
+  useEffect(() => {
+    if (!user && (activeTab === 'Chat' || activeTab === 'Profile')) {
+      setShowAuth(true);
+    } else {
+      setShowAuth(false);
     }
+  }, [user, activeTab]);
 
-    if (activeTab === "snaps") {
-      return [
-        {
-          title: "Camera + Filters",
-          body: "Prepare the native camera stack with filters, stories, snaps, and streaks."
-        },
-        {
-          title: "Avatar + Streaks",
-          body: "Snap-inspired identity layer with close-friends momentum and daily streak tracking."
-        }
-      ];
+  if (isLoading) {
+    return <SplashScreen />;
+  }
+
+  // If user not signed in and navigated to auth-required tab, show auth screen
+  if (!user && showAuth) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+        <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
+        <AuthScreen />
+        <BottomTabBar activeTab={activeTab} onTabChange={setActiveTab} />
+      </SafeAreaView>
+    );
+  }
+
+  function renderScreen() {
+    switch (activeTab) {
+      case 'Home':
+        return <HomeScreen />;
+      case 'Explore':
+        return <ExploreScreen />;
+      case 'AILab':
+        return <AILabScreen />;
+      case 'Hackathon':
+        return <HackathonScreen />;
+      case 'Chat':
+        return <ChatScreen />;
+      case 'Profile':
+        return <ProfileScreen />;
+      default:
+        return <HomeScreen />;
     }
-
-    if (activeTab === "chat") {
-      return [
-        {
-          title: "Chats",
-          body: "WhatsApp + Telegram style threads, media, smart replies, and disappearing messages."
-        },
-        {
-          title: "Voice + Groups",
-          body: "Voice notes, channels, groups, reactions, and creator broadcast spaces."
-        }
-      ];
-    }
-
-    if (activeTab === "profile") {
-      return [
-        {
-          title: "Profile",
-          body: "Posts, reels, followers, following, editable bio, stats, and creator identity."
-        },
-        {
-          title: "Analytics",
-          body: "Follower growth, engagement, and best-time-to-post insights."
-        }
-      ];
-    }
-
-    return [
-      {
-        title: "Home Feed",
-        body: "Instagram-first vertical social feed with stories, posts, reels, likes, saves, and comments."
-      },
-      {
-        title: "AI Hub",
-        body: "Free AI tools for captions, feed control, moderation, replies, and creator assistance."
-      }
-    ];
-  }, [activeTab]);
+  }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.bg }]}>
-      <StatusBar style={themeId === "oceanGlass" ? "dark" : "light"} />
-      <View style={styles.wrapper}>
-        <View style={styles.topRow}>
-          <View>
-            <Text style={[styles.kicker, { color: theme.accent }]}>Lumi Mobile</Text>
-            <Text style={[styles.title, { color: theme.text }]}>Social app shell ready for Android integration</Text>
-          </View>
-          <Pressable
-            style={[styles.themeButton, { backgroundColor: theme.panel }]}
-            onPress={() =>
-              setThemeId((current) =>
-                current === "nightNeon" ? "oceanGlass" : current === "oceanGlass" ? "midnightBlue" : "nightNeon"
-              )
-            }
-          >
-            <Text style={{ color: theme.text, fontWeight: "700" }}>
-              {themeId === "nightNeon" ? "Night Neon" : themeId === "oceanGlass" ? "Ocean Glass" : "Midnight Blue"}
-            </Text>
-          </Pressable>
-        </View>
-
-        <ScrollView contentContainerStyle={styles.content}>
-          <View style={[styles.hero, { backgroundColor: theme.panel }]}>
-            <Text style={[styles.heroTitle, { color: theme.text }]}>
-              Instagram 50%, WhatsApp chat, Snapchat snaps, Telegram groups, Threads text, and creator-first social energy.
-            </Text>
-            <Text style={[styles.heroBody, { color: theme.subtext }]}>
-              This Expo shell mirrors the web app architecture and gives you a mobile-ready direction for Play Store packaging.
-            </Text>
-          </View>
-
-          {content.map((item) => (
-            <SectionCard key={item.title} title={item.title} body={item.body} theme={theme} />
-          ))}
-        </ScrollView>
-
-        <View style={[styles.bottomNav, { backgroundColor: theme.panel }]}>
-          {tabs.map((tab) => (
-            <Pressable key={tab.id} style={styles.tabItem} onPress={() => setActiveTab(tab.id)}>
-              <Text
-                style={{
-                  color: activeTab === tab.id ? theme.accent : theme.subtext,
-                  fontWeight: activeTab === tab.id ? "700" : "500"
-                }}
-              >
-                {tab.label}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-      </View>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
+      {renderScreen()}
+      <BottomTabBar activeTab={activeTab} onTabChange={setActiveTab} />
     </SafeAreaView>
+  );
+}
+
+// ─── Root ─────────────────────────────────────────────────────────────────────
+export default function App() {
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <AuthProvider>
+          <AppShell />
+        </AuthProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1
-  },
-  wrapper: {
     flex: 1,
-    padding: 20,
-    gap: 16
+    backgroundColor: COLORS.bg,
   },
-  topRow: {
-    gap: 12
+  splash: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  kicker: {
+  splashIcon: {
+    width: 100,
+    height: 100,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
+  splashTitle: {
+    fontSize: 48,
+    fontWeight: '900',
+    color: '#fff',
+    letterSpacing: -2,
+  },
+  splashTagline: {
     fontSize: 16,
-    fontWeight: "700"
+    color: 'rgba(255,255,255,0.5)',
+    marginTop: 8,
+    fontWeight: '500',
   },
-  title: {
-    fontSize: 28,
-    lineHeight: 36,
-    fontWeight: "700",
-    marginTop: 8
-  },
-  themeButton: {
-    alignSelf: "flex-start",
-    borderRadius: 999,
-    paddingHorizontal: 16,
-    paddingVertical: 10
-  },
-  content: {
-    gap: 16,
-    paddingBottom: 16
-  },
-  hero: {
-    borderRadius: 28,
-    padding: 20
-  },
-  heroTitle: {
-    fontSize: 20,
-    lineHeight: 28,
-    fontWeight: "700"
-  },
-  heroBody: {
-    marginTop: 12,
-    fontSize: 15,
-    lineHeight: 24
-  },
-  card: {
-    borderRadius: 24,
-    padding: 18
-  },
-  cardTitle: {
-    fontSize: 17,
-    fontWeight: "700"
-  },
-  cardBody: {
-    marginTop: 10,
-    fontSize: 14,
-    lineHeight: 22
-  },
-  bottomNav: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    borderRadius: 28,
-    paddingHorizontal: 10,
-    paddingVertical: 12
-  },
-  tabItem: {
-    flex: 1,
-    alignItems: "center"
-  }
 });

@@ -2,7 +2,7 @@
   "expo": {
     "name": "Lumi",
     "slug": "lumi-mobile",
-    "version": "0.1.0",
+    "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "scheme": "lumi",
@@ -15,19 +15,31 @@
       "adaptiveIcon": {
         "backgroundColor": "#050505"
       },
-      "permissions": ["CAMERA", "RECORD_AUDIO", "ACCESS_FINE_LOCATION", "READ_MEDIA_IMAGES", "READ_MEDIA_VIDEO"]
+      "permissions": [
+        "CAMERA",
+        "RECORD_AUDIO",
+        "ACCESS_FINE_LOCATION",
+        "READ_MEDIA_IMAGES",
+        "READ_MEDIA_VIDEO"
+      ]
     },
     "ios": {
-      "bundleIdentifier": "com.lumi.app"
+      "bundleIdentifier": "com.lumi.app",
+      "supportsTablet": false
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single"
     },
     "plugins": [
       "expo-camera",
-      "expo-location"
+      "expo-image-picker"
     ],
     "extra": {
       "eas": {
         "projectId": "replace-with-your-eas-project-id"
       }
-    }
+    },
+    "newArchEnabled": true
   }
 }
