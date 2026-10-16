@@ -106,7 +106,7 @@
           },
           "members": {
             "$uid": {
-              ".write": "auth !== null && data.parent().parent().child('ownerId').val() !== $uid && ((newData.val() === true && auth.uid === data.parent().parent().child('ownerId').val() && root.child('hackathon').child('teamRequests').child($teamId).child($uid).child('status').val() === 'pending') || (!newData.exists() && (auth.uid === $uid || auth.uid === data.parent().parent().child('ownerId').val())))",
+              ".write": "auth !== null && data.parent().parent().child('ownerId').val() !== $uid && ((newData.val() === true && auth.uid === data.parent().parent().child('ownerId').val() && root.child('hackathon').child('teamRequests').child($teamId).child($uid).child('status').val() === 'pending') || (newData.val() === true && auth.uid === $uid && !data.exists() && root.child('hackathon').child('teams').child($teamId).child('recruiting').val() === true) || (!newData.exists() && (auth.uid === $uid || auth.uid === data.parent().parent().child('ownerId').val())))",
               ".validate": "newData.val() === true && (data.parent().parent().exists() || $uid === auth.uid)"
             }
           }
@@ -152,6 +152,15 @@
       "$storyId": {
         ".write": "auth !== null && ((!data.exists() && newData.child('authorId').val() === auth.uid) || (data.exists() && !newData.exists() && data.child('authorId').val() === auth.uid))",
         ".validate": "newData.hasChildren(['authorId', 'mediaUrl', 'createdAt', 'expiresAt']) && newData.child('authorId').val() === auth.uid && newData.child('mediaUrl').isString() && ((newData.child('mediaUrl').val().beginsWith('https://') && newData.child('mediaUrl').val().length <= 2048) || (newData.child('mediaUrl').val().beginsWith('data:image/jpeg;base64,') && newData.child('mediaUrl').val().length <= 150000)) && newData.child('createdAt').isNumber() && newData.child('expiresAt').isNumber() && newData.child('expiresAt').val() > newData.child('createdAt').val() && newData.child('expiresAt').val() <= now + 86400000"
+      }
+    },
+    "teamMessages": {
+      "$teamId": {
+        ".read": "auth !== null && root.child('hackathon').child('teams').child($teamId).child('members').child(auth.uid).val() === true",
+        "$messageId": {
+          ".write": "auth !== null && !data.exists() && newData.child('authorId').val() === auth.uid && root.child('hackathon').child('teams').child($teamId).child('members').child(auth.uid).val() === true",
+          ".validate": "newData.hasChildren(['authorId', 'authorName', 'text', 'createdAt']) && newData.child('authorId').val() === auth.uid && newData.child('authorName').isString() && newData.child('authorName').val().length <= 100 && newData.child('text').isString() && newData.child('text').val().length <= 1000 && (newData.child('text').val().length > 0 || (newData.child('imageData').isString() && newData.child('imageData').val().beginsWith('data:image/jpeg;base64,') && newData.child('imageData').val().length <= 150000)) && (!newData.child('imageData').exists() || (newData.child('imageData').isString() && newData.child('imageData').val().beginsWith('data:image/jpeg;base64,') && newData.child('imageData').val().length <= 150000)) && newData.child('createdAt').isNumber()"
+        }
       }
     },
     "relationships": {

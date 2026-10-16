@@ -66,15 +66,28 @@ test("projects permit discovery, owner edits, and scoped reactions", async () =>
   await assertFails(set(databaseRef(database("alice"), "hackathon/projects/unsafe"), { ...project("alice"), imageUrls: ["javascript:alert(1)"] }));
 });
 
-test("team membership requires a genuine pending request and owner approval", async () => {
+test("students can join open teams as themselves and cannot join closed teams", async () => {
   await environment.clearDatabase();
   await assertFails(set(databaseRef(database("alice"), "hackathon/teams/forged"), team("alice", { alice: true, bob: true })));
   await assertSucceeds(set(databaseRef(database("alice"), "hackathon/teams/t1"), team("alice")));
-  await assertFails(set(databaseRef(database("bob"), "hackathon/teams/t1/members/bob"), true));
-  await assertSucceeds(set(databaseRef(database("bob"), "hackathon/teamRequests/t1/bob"), { userId: "bob", name: "Bob", message: "I can code", status: "pending", createdAt: Date.now() }));
-  await assertFails(set(databaseRef(database("alice"), "hackathon/teamRequests/t1/bob"), null));
-  await assertSucceeds(set(databaseRef(database("alice"), "hackathon/teams/t1/members/bob"), true));
-  await assertSucceeds(set(databaseRef(database("alice"), "hackathon/teamRequests/t1/bob/status"), "accepted"));
+  await assertSucceeds(set(databaseRef(database("bob"), "hackathon/teams/t1/members/bob"), true));
+  await assertFails(set(databaseRef(database("eve"), "hackathon/teams/t1/members/cara"), true));
+  await assertSucceeds(set(databaseRef(database("alice"), "hackathon/teams/t1/recruiting"), false));
+  await assertFails(set(databaseRef(database("cara"), "hackathon/teams/t1/members/cara"), true));
+  await assertSucceeds(set(databaseRef(database("alice"), "hackathon/teams/t1/recruiting"), true));
+});
+
+test("team conversations stay with members and accept small gallery images", async () => {
+  await environment.clearDatabase();
+  await assertSucceeds(set(databaseRef(database("alice"), "hackathon/teams/t1"), team("alice")));
+  await assertSucceeds(set(databaseRef(database("bob"), "hackathon/teams/t1/members/bob"), true));
+  await assertFails(get(databaseRef(database("eve"), "teamMessages/t1")));
+  await assertSucceeds(get(databaseRef(database("bob"), "teamMessages/t1")));
+  await assertSucceeds(set(databaseRef(database("bob"), "teamMessages/t1/m1"), { authorId: "bob", authorName: "Bob", text: "Hello team", createdAt: Date.now() }));
+  await assertSucceeds(set(databaseRef(database("alice"), "teamMessages/t1/m2"), { authorId: "alice", authorName: "Alice", text: "", imageData: "data:image/jpeg;base64,AA==", createdAt: Date.now() }));
+  await assertFails(set(databaseRef(database("eve"), "teamMessages/t1/m3"), { authorId: "eve", authorName: "Eve", text: "Intrusion", createdAt: Date.now() }));
+  await assertFails(set(databaseRef(database("bob"), "teamMessages/t1/m4"), { authorId: "alice", authorName: "Alice", text: "Forged", createdAt: Date.now() }));
+  await assertFails(set(databaseRef(database("bob"), "teamMessages/t1/m5"), { authorId: "bob", authorName: "Bob", text: "", imageData: "javascript:alert(1)", createdAt: Date.now() }));
 });
 
 test("servers start with the owner only; members can send their own messages", async () => {

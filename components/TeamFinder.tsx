@@ -1,16 +1,19 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { onValue, push, ref, set } from "firebase/database";
-import { ArrowLeft, ArrowRight, Check, Clock3, Loader2, Plus, Search, Send, Users, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, ImagePlus, Link2, Loader2, Plus, Search, Send, Users, X } from "lucide-react";
 import AuthPanel, { LumiViewer } from "@/components/AuthPanel";
 import { useLumiMode } from "@/components/LumiModeContext";
 import { realtimeDb } from "@/lib/firebase";
+import { compressGalleryImage } from "@/lib/media";
 
 type DiscoverableStudent = { id: string; name: string; avatar: string; bio: string; skills: string[]; interests: string[]; role: string; level: string; availability: string };
 type Team = { id: string; ownerId: string; ownerName: string; name: string; description: string; idea: string; hackathonName: string; skills: string[]; roles: string[]; maxMembers: number; recruiting: boolean; createdAt: number; members?: Record<string, true> };
 type JoinRequest = { userId: string; name: string; message: string; status: "pending" | "accepted" | "rejected"; createdAt: number };
+type TeamMessage = { authorId: string; authorName: string; text: string; imageData?: string; createdAt: number };
+type PublicProfile = { name?: string; avatar?: string; username?: string };
 
 function textList(value: unknown, limit: number) {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string").slice(0, limit) : [];
@@ -54,12 +57,15 @@ export default function TeamFinder() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [students, setStudents] = useState<DiscoverableStudent[]>([]);
   const [requests, setRequests] = useState<Record<string, JoinRequest>>({});
+  const [profiles, setProfiles] = useState<Record<string, PublicProfile>>({});
+  const [teamMessages, setTeamMessages] = useState<TeamMessage[]>([]);
   const [tab, setTab] = useState<"teams" | "students" | "mine">("teams");
   const [search, setSearch] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [activeTeam, setActiveTeam] = useState("");
-  const [intro, setIntro] = useState("");
+  const [teamMessage, setTeamMessage] = useState("");
+  const [teamImage, setTeamImage] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -68,6 +74,7 @@ export default function TeamFinder() {
   const [retryKey, setRetryKey] = useState(0);
   const [teamForm, setTeamForm] = useState({ name: "", description: "", idea: "", hackathonName: "", skills: "", roles: "", maxMembers: 4 });
   const [profileForm, setProfileForm] = useState({ bio: "", skills: "", interests: "", role: "", level: "Beginner", availability: "Open to collaborate" });
+  const teamImageInput = useRef<HTMLInputElement>(null);
   const dark = !isFocusMode;
   const card = dark ? "border-white/10 bg-[#131a2a] text-white" : "border-slate-200 bg-white text-slate-950";
   const muted = dark ? "text-slate-400" : "text-slate-500";
@@ -84,8 +91,14 @@ export default function TeamFinder() {
     const unsubscribeStudents = onValue(ref(realtimeDb, "hackathon/discoverableStudents"), (snapshot: { val: () => Record<string, Omit<DiscoverableStudent, "id">> | null }) => {
       setStudents(Object.entries(snapshot.val() ?? {}).map(([id, value]) => normaliseStudent(id, value)).slice(0, 80));
     }, () => setError("Student cards cannot load until the Lumi database is available."));
-    return () => { window.clearTimeout(timeout); unsubscribeTeams(); unsubscribeStudents(); };
+    const unsubscribeProfiles = onValue(ref(realtimeDb, "publicProfiles"), (snapshot: { val: () => Record<string, PublicProfile> | null }) => setProfiles(snapshot.val() ?? {}));
+    return () => { window.clearTimeout(timeout); unsubscribeTeams(); unsubscribeStudents(); unsubscribeProfiles(); };
   }, [retryKey]);
+
+  useEffect(() => {
+    const teamId = new URLSearchParams(window.location.search).get("team");
+    if (teamId) setActiveTeam(teamId);
+  }, []);
 
   useEffect(() => {
     if (!selected || !viewer) { setRequests({}); return; }
@@ -95,6 +108,14 @@ export default function TeamFinder() {
       setRequests(selected.ownerId === viewer.id ? value as Record<string, JoinRequest> ?? {} : value ? { [viewer.id]: value as JoinRequest } : {});
     }, () => setRequests({}));
   }, [selected?.id, selected?.ownerId, viewer?.id]);
+
+  useEffect(() => {
+    if (!selected || !viewer || !selected.members?.[viewer.id]) { setTeamMessages([]); return; }
+    setTeamMessages([]);
+    return onValue(ref(realtimeDb, `teamMessages/${selected.id}`), (snapshot: { val: () => Record<string, TeamMessage> | null }) => {
+      setTeamMessages(Object.values(snapshot.val() ?? {}).sort((a, b) => a.createdAt - b.createdAt));
+    }, () => setError("Team messages are unavailable right now."));
+  }, [selected?.id, viewer?.id, selected?.members]);
 
   const visibleTeams = useMemo(() => teams.filter((team) => {
     if (tab === "mine" && (!viewer || !team.members?.[viewer.id])) return false;
@@ -130,13 +151,36 @@ export default function TeamFinder() {
     finally { setBusy(false); }
   }
 
-  async function requestJoin(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function joinTeam() {
     if (!viewer || !selected || selected.ownerId === viewer.id) return;
-    setBusy(true);
-    try { await set(ref(realtimeDb, `hackathon/teamRequests/${selected.id}/${viewer.id}`), { userId: viewer.id, name: viewer.name, message: intro.trim().slice(0, 500), status: "pending", createdAt: Date.now() }); setIntro(""); setSuccess("Join request sent to the team leader."); setError(""); }
-    catch { setError("Join request could not be sent, or you already have a request pending."); }
-    finally { setBusy(false); }
+    if (!selected.recruiting || Object.keys(selected.members ?? {}).length >= selected.maxMembers) return setError("This team is not accepting new members.");
+    try { await set(ref(realtimeDb, `hackathon/teams/${selected.id}/members/${viewer.id}`), true); setSuccess(`Joined ${selected.name}.`); setError(""); }
+    catch { setError("Could not join this team. It may have just filled up."); }
+  }
+
+  async function shareTeam(team: Team) {
+    const url = `${window.location.origin}/team-finder?team=${encodeURIComponent(team.id)}`;
+    try {
+      if (navigator.share) await navigator.share({ title: `Join ${team.name} on Lumi`, text: `Join ${team.name} on Lumi.`, url });
+      else { await navigator.clipboard.writeText(url); setSuccess("Team invite link copied."); }
+    } catch (exception) { if (exception instanceof Error && exception.name !== "AbortError") setError("Could not share this team invite."); }
+  }
+
+  async function selectTeamImage(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    try { setTeamImage(await compressGalleryImage(file)); }
+    catch (exception) { setError(exception instanceof Error ? exception.message : "Image could not be prepared."); }
+    event.target.value = "";
+  }
+
+  async function sendTeamMessage(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!viewer || !selected?.members?.[viewer.id] || (!teamMessage.trim() && !teamImage)) return;
+    try {
+      await set(push(ref(realtimeDb, `teamMessages/${selected.id}`)), { authorId: viewer.id, authorName: viewer.name, text: teamMessage.trim().slice(0, 1000), ...(teamImage ? { imageData: teamImage } : {}), createdAt: Date.now() });
+      setTeamMessage(""); setTeamImage("");
+    } catch { setError("Could not send your team message."); }
   }
 
   async function decideRequest(userId: string, action: "accepted" | "rejected") {
@@ -168,7 +212,6 @@ export default function TeamFinder() {
       {showCreate && <form onSubmit={createTeam} className={`grid gap-3 rounded-2xl border p-5 sm:grid-cols-2 ${card}`}><div className="sm:col-span-2 flex justify-between"><h2 className="text-xl font-bold">Create a public team</h2><button type="button" aria-label="Close team form" onClick={() => setShowCreate(false)}><X className="h-5 w-5" /></button></div><input required maxLength={80} aria-label="Team name" className={input} placeholder="Team name" value={teamForm.name} onChange={(event) => setTeamForm({ ...teamForm, name: event.target.value })} /><input maxLength={100} aria-label="Hackathon name" className={input} placeholder="Hackathon name (optional)" value={teamForm.hackathonName} onChange={(event) => setTeamForm({ ...teamForm, hackathonName: event.target.value })} /><textarea required rows={3} maxLength={500} aria-label="Team description" className={`sm:col-span-2 ${input}`} placeholder="What is your team about?" value={teamForm.description} onChange={(event) => setTeamForm({ ...teamForm, description: event.target.value })} /><input required maxLength={200} aria-label="Project idea" className={`sm:col-span-2 ${input}`} placeholder="Project idea" value={teamForm.idea} onChange={(event) => setTeamForm({ ...teamForm, idea: event.target.value })} /><input maxLength={250} aria-label="Required skills" className={input} placeholder="Required skills, separated by commas" value={teamForm.skills} onChange={(event) => setTeamForm({ ...teamForm, skills: event.target.value })} /><input maxLength={250} aria-label="Open roles" className={input} placeholder="Open roles, separated by commas" value={teamForm.roles} onChange={(event) => setTeamForm({ ...teamForm, roles: event.target.value })} /><label className="text-sm">Maximum members<input type="number" min={2} max={12} className={`mt-1 ${input}`} value={teamForm.maxMembers} onChange={(event) => setTeamForm({ ...teamForm, maxMembers: Number(event.target.value) })} /></label><div className="sm:col-span-2"><button disabled={busy} className="rounded-full bg-sky-400 px-5 py-2.5 text-sm font-bold text-slate-950 disabled:opacity-50">{busy ? "Creating…" : "Create team"}</button></div></form>}
       {showProfile && <form onSubmit={publishProfile} className={`grid gap-3 rounded-2xl border p-5 sm:grid-cols-2 ${card}`}><div className="sm:col-span-2 flex justify-between"><div><h2 className="text-xl font-bold">Your discoverable card</h2><p className={`mt-1 text-xs ${muted}`}>Only details entered here are shown in Team Finder.</p></div><button type="button" aria-label="Close profile form" onClick={() => setShowProfile(false)}><X className="h-5 w-5" /></button></div><textarea required maxLength={300} rows={3} aria-label="Short bio" className={`sm:col-span-2 ${input}`} placeholder="Short bio" value={profileForm.bio} onChange={(event) => setProfileForm({ ...profileForm, bio: event.target.value })} /><input maxLength={250} aria-label="Technical skills" className={input} placeholder="Technical skills, separated by commas" value={profileForm.skills} onChange={(event) => setProfileForm({ ...profileForm, skills: event.target.value })} /><input maxLength={200} aria-label="Project interests" className={input} placeholder="Interests, separated by commas" value={profileForm.interests} onChange={(event) => setProfileForm({ ...profileForm, interests: event.target.value })} /><input required maxLength={80} aria-label="Preferred role" className={input} placeholder="Preferred role" value={profileForm.role} onChange={(event) => setProfileForm({ ...profileForm, role: event.target.value })} /><select aria-label="Experience level" className={input} value={profileForm.level} onChange={(event) => setProfileForm({ ...profileForm, level: event.target.value })}><option>Beginner</option><option>Intermediate</option><option>Advanced</option></select><select aria-label="Availability" className={input} value={profileForm.availability} onChange={(event) => setProfileForm({ ...profileForm, availability: event.target.value })}><option>Open to collaborate</option><option>Available on weekends</option><option>Not available right now</option></select><div className="sm:col-span-2"><button disabled={busy} className="rounded-full bg-sky-400 px-5 py-2.5 text-sm font-bold text-slate-950 disabled:opacity-50">Save discoverable card</button></div></form>}
       {tab === "students" ? <><div className="flex items-end justify-between"><div><h2 className="text-xl font-bold">Student builders</h2><p className={`mt-1 text-sm ${muted}`}>Only students who opted in appear here.</p></div><button onClick={() => setShowProfile(true)} className="text-sm font-bold text-sky-500">{students.some((student) => student.id === viewer?.id) ? "Edit my card" : "Make me discoverable"}</button></div><div className="grid gap-3 sm:grid-cols-2">{visibleStudents.map((student) => <article key={student.id} className={`rounded-2xl border p-5 ${card}`}><div className="flex items-center gap-3"><img src={student.avatar} alt="" className="h-12 w-12 rounded-full" /><div><Link href={`/profile/${student.id}`} className="font-bold hover:text-sky-500">{student.name}</Link><p className={`text-xs ${muted}`}>{student.role} · {student.level}</p></div></div><p className={`mt-3 line-clamp-3 text-sm ${muted}`}>{student.bio}</p><div className="mt-3 flex flex-wrap gap-1">{student.skills.map((skill) => <span key={skill} className="rounded-full bg-sky-400/10 px-2 py-1 text-xs text-sky-500">{skill}</span>)}</div><p className={`mt-3 text-xs ${muted}`}>{student.availability}</p></article>)}</div>{!visibleStudents.length && <div className={`rounded-2xl border p-9 text-center ${card}`}><Users className="mx-auto text-sky-500" /><h3 className="mt-3 font-bold">No matching students yet</h3><p className={`mt-1 text-sm ${muted}`}>Try another skill or publish your card.</p></div>}</> : <><div><h2 className="text-xl font-bold">{tab === "mine" ? "My teams" : "Teams looking for builders"}</h2><p className={`mt-1 text-sm ${muted}`}>Find a project idea that excites you.</p></div>{loading ? <div className={`rounded-2xl border p-9 ${card}`}><Loader2 className="mx-auto animate-spin text-sky-500" /></div> : <div className="grid gap-3 sm:grid-cols-2">{visibleTeams.map((team) => <button key={team.id} onClick={() => setActiveTeam(team.id)} className={`rounded-2xl border p-5 text-left transition hover:border-sky-400 ${card}`}><div className="flex justify-between gap-2"><span className={`rounded-full px-2 py-1 text-xs font-semibold ${team.recruiting ? "bg-emerald-500/10 text-emerald-500" : "bg-slate-500/10 text-slate-500"}`}>{team.recruiting ? "Recruiting" : "Closed"}</span><span className={`text-xs ${muted}`}>{Object.keys(team.members ?? {}).length}/{team.maxMembers} members</span></div><h3 className="mt-3 text-lg font-bold">{team.name}</h3><p className={`mt-1 line-clamp-2 text-sm ${muted}`}>{team.idea}</p><div className="mt-3 flex flex-wrap gap-1">{team.skills.slice(0, 3).map((skill) => <span key={skill} className="rounded-full bg-sky-400/10 px-2 py-1 text-xs text-sky-500">{skill}</span>)}</div><span className="mt-4 inline-flex items-center gap-1 text-xs font-bold text-sky-500">View team <ArrowRight className="h-3 w-3" /></span></button>)}</div>}{!visibleTeams.length && !loading && !loadError && <div className={`rounded-2xl border p-9 text-center ${card}`}><Users className="mx-auto text-sky-500" /><h3 className="mt-3 font-bold">{tab === "mine" ? "You have no teams yet" : "No teams match yet"}</h3><p className={`mt-1 text-sm ${muted}`}>Create a team or try another search.</p></div>}</>}
-      {selected && <section className={`rounded-2xl border p-5 ${card}`}><div className="flex justify-between gap-3"><div><p className="text-xs font-semibold text-sky-500">{selected.hackathonName || "Student team"}</p><h2 className="mt-1 text-xl font-bold">{selected.name}</h2><p className={`mt-1 text-sm ${muted}`}>Led by {selected.ownerName}</p></div><button aria-label="Close team" onClick={() => setActiveTeam("")}><X className="h-5 w-5" /></button></div><p className={`mt-4 text-sm leading-6 ${muted}`}>{selected.description}</p><p className="mt-3 text-sm font-semibold">Idea: {selected.idea}</p><p className={`mt-3 text-xs ${muted}`}>Open roles: {selected.roles.join(", ") || "Open to all skills"}</p><p className={`mt-2 text-xs ${muted}`}>Members: {Object.keys(selected.members ?? {}).length} of {selected.maxMembers}</p>{viewer?.id === selected.ownerId ? <div className="mt-5"><button onClick={() => void toggleRecruiting(selected)} className="rounded-full bg-sky-400 px-4 py-2 text-sm font-bold text-slate-950">{selected.recruiting ? "Close recruitment" : "Reopen recruitment"}</button><h3 className="mt-5 font-bold">Join requests</h3><div className="mt-2 space-y-3">{Object.entries(requests).map(([uid, request]) => <div key={uid} className={`rounded-xl border p-3 ${dark ? "border-white/10" : "border-slate-200"}`}><p className="text-sm font-semibold">{request.name} <span className={`text-xs font-normal ${muted}`}>· {request.status}</span></p><p className={`mt-1 text-sm ${muted}`}>{request.message || "No introduction added."}</p>{request.status === "pending" && <div className="mt-2 flex gap-3"><button onClick={() => void decideRequest(uid, "accepted")} className="text-sm font-bold text-emerald-500">Accept</button><button onClick={() => void decideRequest(uid, "rejected")} className="text-sm font-bold text-rose-500">Reject</button></div>}</div>)}{!Object.keys(requests).length && <p className={`text-sm ${muted}`}>No requests yet.</p>}</div></div> : viewer && selected.members?.[viewer.id] ? <button onClick={() => void leaveTeam(selected)} className="mt-4 text-sm font-bold text-rose-500">Leave team</button> : viewer && requests[viewer.id] ? <p className="mt-4 inline-flex items-center gap-2 text-sm text-sky-500"><Clock3 className="h-4 w-4" /> Request {requests[viewer.id].status}</p> : selected.recruiting && Object.keys(selected.members ?? {}).length < selected.maxMembers ? <form onSubmit={requestJoin} className="mt-5 space-y-2"><textarea maxLength={500} rows={2} className={input} value={intro} onChange={(event) => setIntro(event.target.value)} placeholder="Introduce yourself (optional)" /><button disabled={busy} className="inline-flex items-center gap-2 rounded-full bg-sky-400 px-4 py-2 text-sm font-bold text-slate-950 disabled:opacity-50"><Send className="h-4 w-4" /> Request to join</button></form> : <p className={`mt-4 text-sm ${muted}`}>{viewer ? "This team is not accepting requests." : "Sign in to request to join."}</p>}</section>}
-      </div><aside className="space-y-4"><AuthPanel isFocusMode={isFocusMode} onViewerChange={setViewer} /><div className={`rounded-2xl border p-5 ${card}`}><h3 className="font-bold">How it works</h3><ol className={`mt-3 space-y-3 text-sm ${muted}`}><li className="flex gap-2"><Check className="h-4 w-4 shrink-0 text-sky-500" /> Make your student card discoverable.</li><li className="flex gap-2"><Check className="h-4 w-4 shrink-0 text-sky-500" /> Find an open team or start one.</li><li className="flex gap-2"><Check className="h-4 w-4 shrink-0 text-sky-500" /> Send a request and build together.</li></ol></div></aside></div>
+      {selected && <section className={`rounded-2xl border p-5 ${card}`}><div className="flex justify-between gap-3"><div><p className="text-xs font-semibold text-sky-500">{selected.hackathonName || "Student team"}</p><h2 className="mt-1 text-xl font-bold">{selected.name}</h2><p className={`mt-1 text-sm ${muted}`}>Led by {selected.ownerName}</p></div><button aria-label="Close team" onClick={() => setActiveTeam("")}><X className="h-5 w-5" /></button></div><p className={`mt-4 text-sm leading-6 ${muted}`}>{selected.description}</p><p className="mt-3 text-sm font-semibold">Idea: {selected.idea}</p><p className={`mt-3 text-xs ${muted}`}>Open roles: {selected.roles.join(", ") || "Open to all skills"}</p><div className="mt-5"><div className="flex items-center justify-between"><h3 className="font-bold">Members</h3><span className={`text-xs ${muted}`}>{Object.keys(selected.members ?? {}).length} of {selected.maxMembers}</span></div><div className="mt-3 grid gap-2 sm:grid-cols-2">{Object.keys(selected.members ?? {}).map((memberId) => { const member = profiles[memberId]; const memberName = member?.name || (memberId === selected.ownerId ? selected.ownerName : "Lumi member"); return <Link key={memberId} href={`/profile/${memberId}`} className={`flex items-center gap-3 rounded-xl border p-3 transition hover:border-sky-400 ${dark ? "border-white/10" : "border-slate-200"}`}><img src={member?.avatar || `https://api.dicebear.com/9.x/notionists/svg?seed=${encodeURIComponent(memberId)}`} alt="" className="h-9 w-9 rounded-full object-cover" /><span className="min-w-0"><span className="block truncate text-sm font-semibold">{memberName}{memberId === selected.ownerId ? " · owner" : ""}</span><span className={`block truncate text-xs ${muted}`}>{member?.username || "View profile"}</span></span></Link>; })}</div></div>{viewer?.id === selected.ownerId ? <div className="mt-5 flex flex-wrap items-center gap-3"><button type="button" onClick={() => void shareTeam(selected)} className="inline-flex items-center gap-2 rounded-full border border-sky-400/35 px-4 py-2 text-sm font-bold text-sky-500"><Link2 className="h-4 w-4" /> Share team</button><button onClick={() => void toggleRecruiting(selected)} className="rounded-full bg-sky-400 px-4 py-2 text-sm font-bold text-slate-950">{selected.recruiting ? "Close recruitment" : "Reopen recruitment"}</button><div className="basis-full"><h3 className="mt-3 font-bold">Join requests</h3><div className="mt-2 space-y-3">{Object.entries(requests).map(([uid, request]) => <div key={uid} className={`rounded-xl border p-3 ${dark ? "border-white/10" : "border-slate-200"}`}><p className="text-sm font-semibold">{request.name} <span className={`text-xs font-normal ${muted}`}>· {request.status}</span></p><p className={`mt-1 text-sm ${muted}`}>{request.message || "No introduction added."}</p>{request.status === "pending" && <div className="mt-2 flex gap-3"><button onClick={() => void decideRequest(uid, "accepted")} className="text-sm font-bold text-emerald-500">Accept</button><button onClick={() => void decideRequest(uid, "rejected")} className="text-sm font-bold text-rose-500">Reject</button></div>}</div>)}{!Object.keys(requests).length && <p className={`text-sm ${muted}`}>No requests yet.</p>}</div></div></div> : viewer && selected.members?.[viewer.id] ? <button onClick={() => void leaveTeam(selected)} className="mt-5 text-sm font-bold text-rose-500">Leave team</button> : viewer ? <button onClick={() => void joinTeam()} disabled={!selected.recruiting || Object.keys(selected.members ?? {}).length >= selected.maxMembers} className="mt-5 inline-flex items-center gap-2 rounded-full bg-sky-400 px-4 py-2 text-sm font-bold text-slate-950 disabled:opacity-50"><Users className="h-4 w-4" /> Join team</button> : <p className={`mt-5 text-sm ${muted}`}>Sign in to join this team.</p>}{viewer && selected.members?.[viewer.id] ? <div className={`mt-6 border-t pt-5 ${dark ? "border-white/10" : "border-slate-200"}`}><h3 className="font-bold">Team conversation</h3><div className={`mt-3 max-h-80 space-y-3 overflow-y-auto rounded-xl p-4 ${dark ? "bg-[#0c1425]" : "bg-slate-50"}`}>{teamMessages.map((item, index) => <div key={`${item.authorId}-${item.createdAt}-${index}`} className="rounded-xl border border-current/10 p-3"><p className="text-xs font-bold text-sky-500">{item.authorId === viewer.id ? "Me" : item.authorName}</p>{item.text ? <p className="mt-1 break-words text-sm">{item.text}</p> : null}{item.imageData ? <img src={item.imageData} alt="Shared in team chat" className="mt-2 max-h-56 rounded-lg object-cover" /> : null}</div>)}{!teamMessages.length ? <p className={`text-sm ${muted}`}>No messages yet. Start the team conversation.</p> : null}</div><form onSubmit={(event) => void sendTeamMessage(event)} className="mt-3 space-y-2"><div className="flex gap-2"><input maxLength={1000} className={input} value={teamMessage} onChange={(event) => setTeamMessage(event.target.value)} placeholder="Write a message" /><button disabled={!teamMessage.trim() && !teamImage} aria-label="Send team message" className="rounded-xl bg-sky-400 px-4 text-slate-950 disabled:opacity-50"><Send className="h-4 w-4" /></button></div><div className="flex flex-wrap items-center gap-3"><button type="button" onClick={() => teamImageInput.current?.click()} className="inline-flex items-center gap-2 text-xs font-semibold text-sky-500"><ImagePlus className="h-4 w-4" /> Share image from gallery</button><input ref={teamImageInput} type="file" accept="image/*" className="hidden" onChange={(event) => void selectTeamImage(event)} />{teamImage ? <><img src={teamImage} alt="Team message preview" className="h-10 w-10 rounded object-cover" /><button type="button" onClick={() => setTeamImage("")} className="text-xs text-rose-500">Remove</button></> : null}</div></form></div> : null}</section>}      </div><aside className="space-y-4"><AuthPanel isFocusMode={isFocusMode} onViewerChange={setViewer} /><div className={`rounded-2xl border p-5 ${card}`}><h3 className="font-bold">How it works</h3><ol className={`mt-3 space-y-3 text-sm ${muted}`}><li className="flex gap-2"><Check className="h-4 w-4 shrink-0 text-sky-500" /> Make your student card discoverable.</li><li className="flex gap-2"><Check className="h-4 w-4 shrink-0 text-sky-500" /> Find an open team or start one.</li><li className="flex gap-2"><Check className="h-4 w-4 shrink-0 text-sky-500" /> Send a request and build together.</li></ol></div></aside></div>
   </main>;
 }
