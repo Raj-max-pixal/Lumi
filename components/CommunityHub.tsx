@@ -130,7 +130,7 @@ export default function CommunityHub() {
       <h1 className="mt-3 text-3xl font-bold sm:text-4xl">{displayName} Community</h1>
       <p className="mt-2 max-w-2xl text-sm text-slate-200">A place to explore topics and keep your own server notes. Only you can open this Community. Starter spaces are maintained by Lumi Dev; posts here are private to your account.</p>
       <p className="mt-3 text-xs text-slate-300">Signed in as {profileName || viewer.displayName || displayName}</p>
-      <div className="mt-5 flex flex-wrap gap-2"><Link href="/hackathon" className="rounded-full border border-white/30 px-4 py-2 text-sm font-semibold">Explore projects ↗</Link><Link href="/team-finder" className="rounded-full border border-white/30 px-4 py-2 text-sm font-semibold">Find teams ↗</Link><Link href="/clips" className="rounded-full border border-white/30 px-4 py-2 text-sm font-semibold">Developer reels ↗</Link></div>
+      <div className="mt-5 flex flex-wrap gap-2"><Link href="/hackathon" className="rounded-full border border-white/30 px-4 py-2 text-sm font-semibold">Explore projects ↗</Link><Link href="/team-finder" className="rounded-full border border-white/30 px-4 py-2 text-sm font-semibold">Find teams ↗</Link><Link href="/clips" className="rounded-full border border-white/30 px-4 py-2 text-sm font-semibold">Dev Clips ↗</Link></div>
     </header>
     {error && <p role="alert" className="rounded-xl border border-rose-300 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</p>}
     {notice && <p role="status" className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm">{notice}</p>}

@@ -16,6 +16,10 @@ Required names: `NEXT_PUBLIC_FIREBASE_API_KEY`, `NEXT_PUBLIC_FIREBASE_AUTH_DOMAI
 
 Optional: `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` (unused by the link-only app) and `NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID`. Curated YouTube embeds need no API key. Firebase Web SDK identifiers are public client configuration; Admin service-account JSON and private server keys must never be placed in `NEXT_PUBLIC_` variables or committed to Git.
 
+## Lumi AI on the $0 plan
+
+The floating student developer chat calls Ollama Cloud through the server-only `/api/ai/chat` route. It requires a signed-in Firebase user and a private `OLLAMA_API_KEY` set in local `.env.local` and the Vercel Production environment. Create a key in [Ollama settings](https://ollama.com/settings/keys), then set the Vercel variable and redeploy. Never put the key in a `NEXT_PUBLIC_` variable, browser form, or Git. `OLLAMA_MODEL` is optional and defaults to `gemma4:31b`; choose a model included in Ollama's Free starter allowance. Chat history is held only in the open browser tab. The route limits prompt size and message length and gives a visible error when no key, quota, or service is available. Do not buy usage credits or enable automatic payments for Lumi. Ollama's Free allowance is limited and may change; check [official pricing](https://ollama.com/pricing) before enabling the chat for a large audience.
+
 `lib/firebase.ts` checks that the database URL, Auth domain, sender ID, app ID, and any optional Storage bucket are internally consistent with the selected project. The application will fail initialization with an actionable missing/mismatch message until all required values are configured.
 
 ## Console steps

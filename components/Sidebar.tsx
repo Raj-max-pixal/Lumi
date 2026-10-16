@@ -10,7 +10,7 @@ const items = [
   { href: "/hackathon", label: "Hackathon", icon: Trophy },
   { href: "/team-finder", label: "Team Finder", icon: Users },
   { href: "/community", label: "Community", icon: Users },
-  { href: "/clips", label: "Reels", icon: Clapperboard },
+  { href: "/clips", label: "Dev Clips", icon: Clapperboard },
   { href: "/following", label: "Following", icon: Heart },
   { href: "/chat", label: "Messages", icon: MessageCircleMore },
   { href: "/live", label: "Create", icon: PlusSquare },

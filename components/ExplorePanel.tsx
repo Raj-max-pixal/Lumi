@@ -8,7 +8,7 @@ import { DiscoverPayload, FeedItem } from "@/lib/social";
 import { LumiViewer } from "@/components/AuthPanel";
 import { addPostComment, togglePostLike, togglePostSave } from "@/lib/social-firebase";
 
-const categories = ["All", "Photos", "Reels", "Threads"] as const;
+const categories = ["All", "Photos", "Dev Clips", "Threads"] as const;
 
 export default function ExplorePanel({
   data,
@@ -39,7 +39,7 @@ export default function ExplorePanel({
           ? true
           : category === "Photos"
             ? item.contentType === "image"
-            : category === "Reels"
+            : category === "Dev Clips"
               ? item.contentType === "video"
               : item.contentType === "thread";
 
@@ -122,7 +122,7 @@ export default function ExplorePanel({
         <div className="mb-4">
           <p className={`text-2xl font-semibold ${isFocusMode ? "text-slate-900" : "text-white"}`}>Explore</p>
           <p className={isFocusMode ? "mt-1 text-sm text-slate-500" : "mt-1 text-sm text-white/60"}>
-            Browse photos, reels, and threads with working interactions.
+            Browse photos, dev clips, and threads with working interactions.
           </p>
         </div>
 

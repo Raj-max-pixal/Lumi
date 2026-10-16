@@ -21,6 +21,62 @@ body {
   background: #050505;
 }
 
+/* A restrained CRT frame: a fixed viewing width, viewport-height canvas, and
+   visual scanlines that never intercept controls. Small screens keep full width. */
+.lumi-crt {
+  padding: clamp(0px, 1vw, 18px);
+}
+
+.crt-screen {
+  position: relative;
+  isolation: isolate;
+  min-height: calc(100dvh - clamp(0px, 2vw, 36px));
+  border: 1px solid rgba(107, 181, 218, 0.3);
+  border-radius: clamp(0px, 1.4vw, 22px);
+  box-shadow: 0 0 0 5px rgba(8, 15, 30, 0.38), 0 24px 70px rgba(0, 0, 0, 0.32), inset 0 0 36px rgba(67, 163, 202, 0.035);
+}
+
+.crt-screen::after {
+  content: "";
+  position: absolute;
+  z-index: 30;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0.12;
+  background: repeating-linear-gradient(to bottom, transparent 0 3px, rgba(0, 0, 0, 0.32) 3px 4px);
+}
+
+.lumi-crt :is(button, input, textarea, select, a) {
+  accent-color: #d6a02a;
+}
+
+.lumi-warm .crt-screen {
+  background: radial-gradient(circle at 50% -15%, #fff8db, transparent 55%), #f6edcf;
+  border-color: #a68143;
+  box-shadow: 0 0 0 5px #382a1b, 0 24px 70px rgba(72, 45, 16, 0.25), inset 0 0 45px rgba(167, 119, 42, 0.1);
+}
+
+.lumi-warm .crt-screen::after { opacity: 0.07; }
+.lumi-warm :is(.bg-white, .bg-slate-50) { background-color: #fff8e8 !important; }
+.lumi-warm .bg-\[\#f5f7fb\] { background-color: #f6edcf !important; }
+.lumi-warm :is(.border-slate-200, .border-slate-100) { border-color: #d9bd84 !important; }
+.lumi-warm :is(.text-slate-900, .text-slate-950) { color: #302510 !important; }
+.lumi-warm :is(.text-slate-500, .text-slate-600, .text-slate-700) { color: #65512f !important; }
+.lumi-warm .text-sky-400, .lumi-warm .text-sky-500, .lumi-warm .text-sky-700 { color: #8a5710 !important; }
+.lumi-warm .bg-sky-50, .lumi-warm .bg-slate-100 { background-color: #f4dcaa !important; }
+.lumi-warm .bg-sky-400 { background-color: #e8b34a !important; }
+
+@media (max-width: 639px) {
+  .lumi-crt { padding: 0; }
+  .crt-screen { border-radius: 0; border-left: 0; border-right: 0; box-shadow: none; }
+  .crt-screen::after { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lumi-crt * { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+}
+
 * {
   box-sizing: border-box;
 }

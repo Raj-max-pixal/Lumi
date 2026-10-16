@@ -30,7 +30,7 @@ export default function PostComposer({ viewer, isFocusMode = false }: { viewer: 
     if (imageUrl.trim() && videoUrl.trim()) { setStatus("Use one image or YouTube link per post."); return; }
     const normalizedImageUrl = imageUrl.trim() ? normalizeExternalImageUrl(imageUrl) : "";
     if ((imageUrl.trim() && !normalizedImageUrl) || (videoUrl.trim() && !youtubeVideoId(videoUrl.trim()))) { setStatus("Use an HTTPS image URL or a supported public YouTube video URL."); return; }
-    if (videoUrl.trim() && !caption.trim()) { setStatus("Add a caption explaining what students will learn from this reel."); return; }
+    if (videoUrl.trim() && !caption.trim()) { setStatus("Add a caption explaining what students will learn from this clip."); return; }
 
     setIsPosting(true); setStatus("");
     try {
@@ -54,7 +54,7 @@ export default function PostComposer({ viewer, isFocusMode = false }: { viewer: 
       <label className="block text-sm font-medium">Developer topic<select required value={topic} onChange={(event) => setTopic(event.target.value)} className={`mt-2 ${field}`}><option value="">Choose a topic</option>{DEVELOPER_TOPICS.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="text-sm font-medium">Image URL (optional)<input type="url" maxLength={5000} value={imageUrl} onChange={(event) => setImageUrl(event.target.value)} placeholder="https://your-site.com/image.png" className={`mt-2 ${field}`} /></label>
-        <label className="text-sm font-medium">YouTube reel URL (optional)<input type="url" maxLength={2048} value={videoUrl} onChange={(event) => setVideoUrl(event.target.value)} placeholder="https://youtube.com/shorts/..." className={`mt-2 ${field}`} /></label>
+        <label className="text-sm font-medium">YouTube video or Short URL (optional)<input type="url" maxLength={2048} value={videoUrl} onChange={(event) => setVideoUrl(event.target.value)} placeholder="https://youtube.com/shorts/..." className={`mt-2 ${field}`} /></label>
       </div>
       <p className="text-xs opacity-65">Direct photo and video uploads are unavailable. Link media already hosted by you; videos stay on YouTube.</p>
       <div className="flex items-center justify-between gap-4"><p role="status" className={isFocusMode ? "text-sm text-slate-500" : "text-sm text-white/55"}>{status || "Share a project update, tutorial, or developer reel."}</p><button type="submit" disabled={isPosting} className="inline-flex items-center gap-2 rounded-full bg-lumi-purple px-4 py-2 text-sm font-medium text-white transition hover:brightness-110 disabled:opacity-70">{isPosting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Share</button></div>

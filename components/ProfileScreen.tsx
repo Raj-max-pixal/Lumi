@@ -276,7 +276,7 @@ export default function ProfileScreen({
         <div className={`flex items-center justify-center gap-2 border-y py-3 ${isFocusMode ? "border-slate-200" : "border-white/10"}`}>
           {[
             { id: "posts", label: "Posts", icon: Grid3X3 },
-            { id: "reels", label: "Reels", icon: PlaySquare },
+            { id: "reels", label: "Dev Clips", icon: PlaySquare },
             { id: "projects", label: "Projects", icon: Code2 },
           ].map(({ id, label, icon: Icon }) => (
             <button

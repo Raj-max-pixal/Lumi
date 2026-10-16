@@ -52,7 +52,7 @@ export default function ReelsFeed({
     .sort((a, b) => view === "for-you" ? reelInterestScore(b, interests) - reelInterestScore(a, interests) || (b.createdAt ?? 0) - (a.createdAt ?? 0) : (b.createdAt ?? 0) - (a.createdAt ?? 0)), [feed, interests, preferredTopics.length, topic, view]);
 
   async function updateReaction(action: "like" | "save", id: string, active: boolean) {
-    if (!viewer) { setStatus("Sign in to interact with reels."); return; }
+    if (!viewer) { setStatus("Sign in to interact with dev clips."); return; }
     try {
       if (action === "like") await togglePostLike(id, viewer.id, active);
       else await togglePostSave(id, viewer.id, active);
@@ -63,15 +63,15 @@ export default function ReelsFeed({
   return (
     <div className="space-y-4">
       <section className={`rounded-[24px] border p-5 ${isFocusMode ? "border-slate-200 bg-white" : "border-white/10 bg-zinc-950"}`}>
-        <p className={`text-2xl font-semibold ${isFocusMode ? "text-slate-900" : "text-white"}`}>Developer reels</p>
-        <p className={isFocusMode ? "mt-2 text-sm text-slate-500" : "mt-2 text-sm text-white/60"}>Short lessons, project demos, and ideas from student builders.</p>
-        <div className="mt-4 flex flex-wrap gap-2" aria-label="Reel source">
-          <button type="button" onClick={() => setSource("youtube")} className={`rounded-full px-4 py-2 text-sm ${source === "youtube" ? "bg-lumi-purple text-white" : "border border-current/15"}`}>YouTube lessons</button>
+        <p className={`text-2xl font-semibold ${isFocusMode ? "text-slate-900" : "text-white"}`}>Dev Clips</p>
+        <p className={isFocusMode ? "mt-2 text-sm text-slate-500" : "mt-2 text-sm text-white/60"}>Quick tech lessons, YouTube Shorts, project demos, and ideas from student builders.</p>
+        <div className="mt-4 flex flex-wrap gap-2" aria-label="Dev Clips source">
+          <button type="button" onClick={() => setSource("youtube")} className={`rounded-full px-4 py-2 text-sm ${source === "youtube" ? "bg-lumi-purple text-white" : "border border-current/15"}`}>YouTube quick lessons</button>
           <button type="button" onClick={() => setSource("lumi")} className={`rounded-full px-4 py-2 text-sm ${source === "lumi" ? "bg-lumi-purple text-white" : "border border-current/15"}`}>Lumi Originals</button>
         </div>
         <div className="mt-4 flex flex-wrap gap-2"><button type="button" onClick={() => setView("for-you")} className={`rounded-full px-4 py-2 text-sm ${view === "for-you" ? "bg-lumi-purple text-white" : "border border-current/15"}`}>For you</button><button type="button" onClick={() => setView("all")} className={`rounded-full px-4 py-2 text-sm ${view === "all" ? "bg-lumi-purple text-white" : "border border-current/15"}`}>Explore all</button></div>
         <label className="mt-4 block text-xs font-medium">Topic
-          <select aria-label="Filter reels by developer topic" value={topic} onChange={(event) => setTopic(event.target.value)} className={`mt-1 w-full rounded-xl border px-3 py-2.5 text-sm ${isFocusMode ? "border-slate-200 bg-white text-slate-900" : "border-white/15 bg-[#17131e] text-white"}`}><option value="">All developer topics</option>{DEVELOPER_TOPICS.map((item) => <option key={item}>{item}</option>)}</select>
+          <select aria-label="Filter dev clips by developer topic" value={topic} onChange={(event) => setTopic(event.target.value)} className={`mt-1 w-full rounded-xl border px-3 py-2.5 text-sm ${isFocusMode ? "border-slate-200 bg-white text-slate-900" : "border-white/15 bg-[#17131e] text-white"}`}><option value="">All developer topics</option>{DEVELOPER_TOPICS.map((item) => <option key={item}>{item}</option>)}</select>
         </label>
         {view === "for-you" && <p className="mt-3 text-xs opacity-65">{preferredTopics.length ? `Based on your interests: ${preferredTopics.join(" · ")}` : <>Add interests in your <Link href="/profile" className="underline">profile</Link> to personalize this feed.</>}</p>}
         {status && <p role="status" className="mt-2 text-xs text-rose-400">{status}</p>}
@@ -114,7 +114,7 @@ export default function ReelsFeed({
             />
           </div>
         ))}
-        {source === "lumi" && !reels.length && !loadError && !loading ? <div className="rounded-[24px] border border-current/10 p-8 text-center text-sm"><p>{topic ? `No ${topic} reels yet.` : view === "for-you" && preferredTopics.length ? "No reels match your interests yet." : "No developer reels yet."}</p><p className="mt-2 opacity-65">{view === "for-you" && preferredTopics.length ? "Explore all topics or share a reel about what you are building." : "Share a short project demo or tutorial to start the feed."}</p>{view === "for-you" && preferredTopics.length && <button type="button" onClick={() => setView("all")} className="mt-3 rounded-full bg-lumi-purple px-4 py-2 font-semibold text-white">Explore all reels</button>}</div> : null}
+        {source === "lumi" && !reels.length && !loadError && !loading ? <div className="rounded-[24px] border border-current/10 p-8 text-center text-sm"><p>{topic ? `No ${topic} clips yet.` : view === "for-you" && preferredTopics.length ? "No clips match your interests yet." : "No dev clips yet."}</p><p className="mt-2 opacity-65">{view === "for-you" && preferredTopics.length ? "Explore all topics or share a clip about what you are building." : "Share a short project demo or tutorial to start the feed."}</p>{view === "for-you" && preferredTopics.length && <button type="button" onClick={() => setView("all")} className="mt-3 rounded-full bg-lumi-purple px-4 py-2 font-semibold text-white">Explore all clips</button>}</div> : null}
       </div>
     </div>
   );
