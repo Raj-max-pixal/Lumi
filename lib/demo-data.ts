@@ -11,7 +11,7 @@ export const demoSeed: DemoState = {
   version: 1,
   follows: {},
   users: [
-    { id: "raj-demo", name: "Raj Demo", username: "@raj_demo", bio: "Student builder exploring useful AI tools and web apps.", skills: ["React", "Python", "AI"], interests: ["Artificial Intelligence", "Web Development"] },
+    { id: "raj-demo", name: "User Demo", username: "@user_demo", bio: "Student builder exploring useful AI tools and web apps.", skills: ["React", "Python", "AI"], interests: ["Artificial Intelligence", "Web Development"] },
     { id: "priya-demo", name: "Priya Demo", username: "@priya_demo", bio: "I build mobile experiences for student communities.", skills: ["Flutter", "Firebase", "Dart"], interests: ["Mobile Development"] },
     { id: "arun-demo", name: "Arun Demo", username: "@arun_demo", bio: "Machine learning enthusiast turning experiments into projects.", skills: ["Python", "TensorFlow", "Data Science"], interests: ["Artificial Intelligence", "Data Science"] },
     { id: "kavin-demo", name: "Kavin Demo", username: "@kavin_demo", bio: "Backend developer who likes robust APIs and open source.", skills: ["Java", "Spring Boot", "PostgreSQL"], interests: ["Open Source", "Cloud Computing"] },
@@ -37,7 +37,10 @@ export function loadDemo(): DemoState {
     const value = window.localStorage.getItem(DEMO_KEY);
     if (!value) return structuredClone(demoSeed);
     const parsed: unknown = JSON.parse(value);
-    if (typeof parsed === "object" && parsed !== null && "version" in parsed && parsed.version === 1 && "users" in parsed && "servers" in parsed && "teams" in parsed && "projects" in parsed && Array.isArray(parsed.users) && Array.isArray(parsed.servers) && Array.isArray(parsed.teams) && Array.isArray(parsed.projects)) return parsed as DemoState;
+    if (typeof parsed === "object" && parsed !== null && "version" in parsed && parsed.version === 1 && "users" in parsed && "servers" in parsed && "teams" in parsed && "projects" in parsed && Array.isArray(parsed.users) && Array.isArray(parsed.servers) && Array.isArray(parsed.teams) && Array.isArray(parsed.projects)) {
+      const state = parsed as DemoState;
+      return { ...state, users: state.users.map((user) => user.id === "raj-demo" ? { ...user, name: "User Demo", username: "@user_demo" } : user) };
+    }
   } catch { /* Browser storage can be unavailable. The demo still opens. */ }
   return structuredClone(demoSeed);
 }

@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Clapperboard, Compass, FlaskConical, Home, MessageCircleMore, Trophy, User } from "lucide-react";
+import { Clapperboard, Home, MessageCircleMore, Trophy, User, Users } from "lucide-react";
 
 const items = [
   { href: "/", label: "Home", icon: Home },
-  { href: "/demo", label: "Demo", icon: FlaskConical },
+  { href: "/demo", label: "Community", icon: Users },
   { href: "/hackathon", label: "Hackathon", icon: Trophy },
   { href: "/clips", label: "Reels", icon: Clapperboard },
   { href: "/profile", label: "Profile", icon: User }
