@@ -1,12 +1,12 @@
 # Lumi implementation checklist
 
-Updated 2026-10-16 after Firebase access, Auth setup, link-only publishing, and live database verification.
+Updated 2026-10-17 after Firebase access, Auth setup, link-only publishing, live database verification, and the Production address change.
 
 ## Architecture
 
 - Next.js 15 App Router, React 19, TypeScript, Tailwind CSS.
 - Firebase Authentication and Realtime Database. Core workflows do not use Cloud Storage or Firestore.
-- Vercel deploys GitHub `main` to `lumi-maxmax.vercel.app`.
+- Vercel deploys GitHub `main` to `lumi-max.vercel.app` (Production).
 - Main routes: `/`, `/clips`, `/explore`, `/profile`, `/profile/[userId]`, `/hackathon`, `/hackathon/project/[projectId]`, `/team-finder`.
 
 ## Feature status

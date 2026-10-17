@@ -30,7 +30,7 @@ try {
     authorId = $owner.localId; authorName = 'Lumi smoke test'; title = 'Temporary link-only test';
     tagline = 'Verifying student publishing'; description = 'Temporary test record removed after verification.';
     category = 'Web Development'; technologies = @('React', 'Firebase');
-    websiteUrl = 'https://lumi-maxmax.vercel.app/'; githubUrl = 'https://github.com/Raj-max-pixal/Lumi';
+    websiteUrl = 'https://lumi-max.vercel.app/'; githubUrl = 'https://github.com/Raj-max-pixal/Lumi';
     imageUrls = @('https://api.dicebear.com/9.x/notionists/svg?seed=lumi-smoke');
     hackathonName = 'Lumi verification'; teamMembers = @('Lumi smoke test');
     createdAt = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
