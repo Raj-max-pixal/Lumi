@@ -64,8 +64,7 @@ export default function AuthPanel({
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
-      setIsLoading(false);
-      setStatus("Sign-in is taking too long. Please try again.");
+      setStatus("Still restoring your saved sign-in. Check your connection if this continues.");
     }, 10000);
 
     const unsubscribe = onAuthStateChanged(
@@ -186,6 +185,7 @@ export default function AuthPanel({
         <div className="flex items-center gap-3">
           <Loader2 className="h-5 w-5 animate-spin text-lumi-purple" />
           <p className={isFocusMode ? "text-sm text-slate-500" : "text-sm text-white/60"}>{status}</p>
+          <button type="button" onClick={() => window.location.reload()} className="ml-auto text-xs font-semibold text-lumi-purple">Retry</button>
         </div>
       ) : viewer ? (
         <div className="flex items-center gap-3">

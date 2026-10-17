@@ -2,9 +2,9 @@
 
 import Image from "next/image";
 import { isSafeUrl, youtubeVideoId } from "@/lib/hackathon";
-import { normalizeExternalImageUrl } from "@/lib/media";
+import { isInlineImage, normalizeExternalImageUrl } from "@/lib/media";
 import { motion } from "framer-motion";
-import { Bookmark, Heart, MessageCircle, MoreHorizontal, Play, Send } from "lucide-react";
+import { Bookmark, Heart, MessageCircle, MoreHorizontal, Play, Send, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { FeedComment } from "@/lib/social";
 
@@ -29,6 +29,8 @@ type LumiCardProps = {
   onShare?: () => void;
   onSave?: () => void;
   onOpenDetail?: () => void;
+  onDelete?: () => void;
+  isDeleting?: boolean;
   isLiked?: boolean;
   isSaved?: boolean;
 };
@@ -90,13 +92,16 @@ export default function LumiCard({
   onShare,
   onSave,
   onOpenDetail,
+  onDelete,
+  isDeleting = false,
   isLiked = false,
   isSaved = false
 }: LumiCardProps) {
   const baseClass = isFocusMode ? "border-slate-200 bg-white text-slate-900" : "border-white/10 bg-zinc-950 text-white";
   const [showHeartBurst, setShowHeartBurst] = useState(false);
   const [failedImageUrl, setFailedImageUrl] = useState("");
-  const resolvedImageUrl = imageUrl ? normalizeExternalImageUrl(imageUrl) : null;
+  const resolvedImageUrl = imageUrl ? (isInlineImage(imageUrl) ? imageUrl : normalizeExternalImageUrl(imageUrl)) : null;
+  const showImage = contentType === "image" && Boolean(resolvedImageUrl) && failedImageUrl !== resolvedImageUrl;
 
   function triggerHeartBurst() {
     setShowHeartBurst(true);
@@ -123,7 +128,10 @@ export default function LumiCard({
               <p className={isFocusMode ? "text-xs text-slate-500" : "text-xs text-white/55"}>{handle}</p>
             </div>
           </div>
-          {onOpenDetail ? <button type="button" onClick={onOpenDetail} aria-label="Open post details" className={isFocusMode ? "text-slate-400" : "text-white/60"}><MoreHorizontal className="h-5 w-5" /></button> : null}
+          <div className="flex items-center gap-3">
+            {onDelete ? <button type="button" onClick={onDelete} disabled={isDeleting} aria-label="Delete your post" className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold text-rose-500 hover:bg-rose-500/10 disabled:opacity-50"><Trash2 className="h-4 w-4" />{isDeleting ? "Deleting…" : "Delete"}</button> : null}
+            {onOpenDetail ? <button type="button" onClick={onOpenDetail} aria-label="Open post details" className={isFocusMode ? "text-slate-400" : "text-white/60"}><MoreHorizontal className="h-5 w-5" /></button> : null}
+          </div>
         </div>
       </div>
 
@@ -137,9 +145,9 @@ export default function LumiCard({
         </div>
       ) : null}
 
-      {contentType === "image" ? (
+      {showImage && resolvedImageUrl ? (
         <div className="relative aspect-[4/5] overflow-hidden border-y border-current/10" onDoubleClick={triggerHeartBurst}>
-          {resolvedImageUrl && failedImageUrl !== resolvedImageUrl ? <Image src={resolvedImageUrl} alt={title} fill unoptimized sizes="(max-width: 640px) 100vw, 640px" className="object-cover" onError={() => setFailedImageUrl(resolvedImageUrl)} /> : <div className="flex h-full flex-col items-center justify-center gap-3 bg-slate-900 px-6 text-center text-sm text-white/75" role="status"><p>This image is unavailable from its host.</p>{resolvedImageUrl && <a href={resolvedImageUrl} target="_blank" rel="noopener noreferrer" className="font-semibold text-sky-300 underline">Open image source ↗</a>}</div>}
+          <Image src={resolvedImageUrl} alt={title} fill unoptimized sizes="(max-width: 640px) 100vw, 640px" className="object-cover" onError={() => setFailedImageUrl(resolvedImageUrl)} />
           {showHeartBurst ? (
             <motion.div
               initial={{ opacity: 0, scale: 0.6 }}

@@ -4,8 +4,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { Code2, ExternalLink, Github, Grid3X3, Link2, Loader2, MapPin, PlaySquare, Pin, Share2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { equalTo, onValue, orderByChild, query, ref, update } from "firebase/database";
-import { realtimeDb } from "@/lib/firebase";
+import { equalTo, onValue, orderByChild, query, ref, remove, update } from "firebase/database";
+import { auth, realtimeDb } from "@/lib/firebase";
+import { firebaseErrorMessage } from "@/lib/firebase-errors";
 import { LumiViewer } from "@/components/AuthPanel";
 import EditProfilePanel from "@/components/EditProfilePanel";
 import LumiCard from "@/components/LumiCard";
@@ -53,6 +54,7 @@ export default function ProfileScreen({
   const [activeTab, setActiveTab] = useState<"posts" | "reels" | "projects">("posts");
   const [profileStatus, setProfileStatus] = useState("");
   const [followBusy, setFollowBusy] = useState(false);
+  const [deletingPostId, setDeletingPostId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!targetUserId) {
@@ -181,6 +183,21 @@ export default function ProfileScreen({
     if (next.length > 3) { setProfileStatus("You can feature up to three projects."); return; }
     try { await update(ref(realtimeDb, `publicProfiles/${viewer.id}`), { featuredProjectIds: next.length ? next : null }); setProfileStatus("Featured projects updated."); }
     catch { setProfileStatus("Could not update featured projects."); }
+  }
+
+  async function deleteOwnPost(post: ProfilePost) {
+    if (!viewer || auth.currentUser?.uid !== viewer.id || post.authorId !== viewer.id || deletingPostId) return;
+    if (!window.confirm("Delete this post and its comments permanently?")) return;
+    setDeletingPostId(post.id);
+    setProfileStatus("");
+    try {
+      await remove(ref(realtimeDb, `community/posts/${post.id}`));
+      setProfileStatus("Post deleted.");
+    } catch (error) {
+      setProfileStatus(firebaseErrorMessage(error, "Deleting your post"));
+    } finally {
+      setDeletingPostId(null);
+    }
   }
 
   const featuredProjects = projects.filter((project) => safeProfile.featuredProjectIds?.includes(project.id)).slice(0, 3);
@@ -326,6 +343,8 @@ export default function ProfileScreen({
                 commentsCount={post.commentsCount}
                 shares={post.shares}
                 tags={post.tags ?? ["Profile", "Post"]}
+                onDelete={isOwnProfile && post.authorId === viewer?.id ? () => void deleteOwnPost(post) : undefined}
+                isDeleting={deletingPostId === post.id}
               />
             ))}
           </div>

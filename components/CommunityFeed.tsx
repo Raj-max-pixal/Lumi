@@ -298,7 +298,7 @@ export default function CommunityFeed({
                   >
                     View @{post.authorName}
                   </Link>
-                  <div className="flex items-center gap-3"><span className={isFocusMode ? "text-xs text-slate-400" : "text-xs text-white/45"}>{new Date(post.createdAt).toLocaleDateString()}</span>{viewer?.id === post.authorId && <button type="button" onClick={() => void deletePost(post)} disabled={Boolean(deletingPostId)} aria-label="Delete your post" className="inline-flex items-center gap-1 text-xs font-semibold text-rose-500 hover:text-rose-400 disabled:opacity-50"><Trash2 className="h-3.5 w-3.5" />{deletingPostId === post.id ? "Deleting…" : "Delete"}</button>}</div>
+                  <span className={isFocusMode ? "text-xs text-slate-400" : "text-xs text-white/45"}>{new Date(post.createdAt).toLocaleDateString()}</span>
                 </div>
 
                 <LumiCard
@@ -315,6 +315,8 @@ export default function CommunityFeed({
                   commentsCount={post.commentsCount}
                   shares={post.shares}
                   tags={post.tags ?? ["Community", "Live"]}
+                  onDelete={viewer?.id === post.authorId ? () => void deletePost(post) : undefined}
+                  isDeleting={deletingPostId === post.id}
                   onDoubleTap={() => {
                     if (!liked) {
                       void likePost(post);

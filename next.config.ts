@@ -1,6 +1,14 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  async redirects() {
+    return [{
+      source: "/:path*",
+      has: [{ type: "host", value: "lumi-maxmax.vercel.app" }],
+      destination: "https://lumi-max.vercel.app/:path*",
+      permanent: true
+    }];
+  },
   images: {
     remotePatterns: [
       {
