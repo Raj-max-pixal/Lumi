@@ -6,7 +6,7 @@
       ".read": true,
       "$uid": {
         ".write": "auth !== null && auth.uid === $uid && newData.exists()",
-        ".validate": "newData.hasChildren(['name', 'avatar', 'username']) && newData.child('name').isString() && newData.child('name').val().length > 0 && newData.child('name').val().length <= 100 && newData.child('avatar').isString() && newData.child('avatar').val().length <= 2048 && newData.child('username').isString() && newData.child('username').val().length <= 60 && (!newData.child('bio').exists() || (newData.child('bio').isString() && newData.child('bio').val().length <= 2000))",
+        ".validate": "newData.hasChildren(['name', 'avatar', 'username']) && newData.child('name').isString() && newData.child('name').val().length > 0 && newData.child('name').val().length <= 100 && newData.child('avatar').isString() && ((newData.child('avatar').val().beginsWith('https://') && newData.child('avatar').val().length <= 2048) || (newData.child('avatar').val().beginsWith('data:image/jpeg;base64,') && newData.child('avatar').val().length <= 32000)) && newData.child('username').isString() && newData.child('username').val().length <= 60 && (!newData.child('bio').exists() || (newData.child('bio').isString() && newData.child('bio').val().length <= 2000))",
         "city": { ".validate": "newData.isString() && newData.val().length <= 100" },
         "skills": { "$index": { ".validate": "newData.isString() && newData.val().length <= 60" } },
         "interests": { "$index": { ".validate": "newData.isString() && newData.val().length <= 60" } },

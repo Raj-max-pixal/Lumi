@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
+import { onValue, ref } from "firebase/database";
 import {
   createUserWithEmailAndPassword,
   GoogleAuthProvider,
@@ -14,9 +15,10 @@ import {
   updateProfile
 } from "firebase/auth";
 import { Loader2, LogOut } from "lucide-react";
-import { auth } from "@/lib/firebase";
+import { auth, realtimeDb } from "@/lib/firebase";
 import { createUserProfileIfMissing, ensureUserProfile } from "@/lib/social-firebase";
 import { firebaseErrorMessage } from "@/lib/firebase-errors";
+import { isDisplayableImageSource } from "@/lib/media";
 
 export type LumiViewer = {
   id: string;
@@ -63,6 +65,7 @@ export default function AuthPanel({
   const [creatingAccount, setCreatingAccount] = useState(false);
 
   useEffect(() => {
+    let unsubscribeProfile: (() => void) | null = null;
     const timeout = window.setTimeout(() => {
       setStatus("Still restoring your saved sign-in. Check your connection if this continues.");
     }, 10000);
@@ -70,6 +73,8 @@ export default function AuthPanel({
     const unsubscribe = onAuthStateChanged(
       auth,
       (user: AuthUserShape | null) => {
+        unsubscribeProfile?.();
+        unsubscribeProfile = null;
         if (!user?.uid) {
           setViewer(null);
           onViewerChange(null);
@@ -100,6 +105,18 @@ export default function AuthPanel({
 
         setViewer(nextViewer);
         onViewerChange(nextViewer);
+        unsubscribeProfile = onValue(ref(realtimeDb, `publicProfiles/${user.uid}`), (snapshot: { val: () => unknown }) => {
+          const saved = snapshot.val() as { name?: string; avatar?: string; username?: string } | null;
+          if (!saved) return;
+          const syncedViewer = {
+            ...nextViewer,
+            name: saved.name || nextViewer.name,
+            avatar: saved.avatar && isDisplayableImageSource(saved.avatar) ? saved.avatar : nextViewer.avatar,
+            username: saved.username || nextViewer.username
+          };
+          setViewer(syncedViewer);
+          onViewerChange(syncedViewer);
+        });
         if (user.displayName || !user.email) setStatus("Checking your Lumi profile...");
         setIsLoading(false);
         window.clearTimeout(timeout);
@@ -116,6 +133,7 @@ export default function AuthPanel({
     return () => {
       window.clearTimeout(timeout);
       unsubscribe();
+      unsubscribeProfile?.();
     };
   }, [onViewerChange]);
 

@@ -34,6 +34,10 @@ test("public discovery is readable; private profiles and root are not", async ()
 test("profiles require the owner and cannot be deleted", async () => {
   await environment.clearDatabase();
   await assertSucceeds(set(databaseRef(database("alice"), "publicProfiles/alice"), profile("Alice")));
+  await assertSucceeds(update(databaseRef(database("alice"), "publicProfiles/alice"), { avatar: `data:image/jpeg;base64,${"A".repeat(1000)}` }));
+  await assertFails(update(databaseRef(database("bob"), "publicProfiles/alice"), { avatar: "https://example.com/stolen.png" }));
+  await assertFails(update(databaseRef(database("alice"), "publicProfiles/alice"), { avatar: `data:image/jpeg;base64,${"A".repeat(32000)}` }));
+  await assertFails(update(databaseRef(database("alice"), "publicProfiles/alice"), { avatar: "javascript:alert(1)" }));
   await assertFails(set(databaseRef(database("bob"), "publicProfiles/alice/name"), "Bob"));
   await assertFails(set(databaseRef(database("alice"), "publicProfiles/alice"), null));
   await assertSucceeds(set(databaseRef(database("alice"), "privateProfiles/alice/city"), "Chennai"));

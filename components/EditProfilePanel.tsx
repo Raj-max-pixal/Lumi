@@ -1,15 +1,16 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { ChangeEvent, useEffect, useRef, useState } from "react";
 import { onValue, ref, set } from "firebase/database";
-import { Loader2, Save } from "lucide-react";
+import { ImagePlus, Loader2, Save } from "lucide-react";
 import { auth, realtimeDb } from "@/lib/firebase";
 import { LumiViewer } from "@/components/AuthPanel";
 import { ensureUserProfile } from "@/lib/social-firebase";
 import { isSafeUrl } from "@/lib/hackathon";
 import { DEVELOPER_TOPICS } from "@/lib/developer-topics";
 import { firebaseErrorMessage } from "@/lib/firebase-errors";
+import { compressAvatarImage, isAvatarImage, isDisplayableImageSource } from "@/lib/media";
 
 type EditableProfile = {
   name: string;
@@ -46,6 +47,8 @@ export default function EditProfilePanel({
     linkedinUrl: ""
   });
   const [isSaving, setIsSaving] = useState(false);
+  const [isPreparingAvatar, setIsPreparingAvatar] = useState(false);
+  const avatarInput = useRef<HTMLInputElement>(null);
   const [status, setStatus] = useState("Load your profile to edit it.");
   const [loadFailed, setLoadFailed] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
@@ -90,8 +93,8 @@ export default function EditProfilePanel({
       return;
     }
     if (auth.currentUser?.uid !== viewer.id) { setStatus("Your session changed. Sign in again before saving."); return; }
-    if ([profile.avatar, profile.portfolioUrl, profile.githubUrl, profile.linkedinUrl].some((url) => url && !isSafeUrl(url)) || (profile.githubUrl && !isSafeUrl(profile.githubUrl, true)) || (profile.linkedinUrl && !/^https:\/\/(www\.)?linkedin\.com\//i.test(profile.linkedinUrl))) {
-      setStatus("Use valid HTTPS avatar, portfolio, GitHub, and LinkedIn links.");
+    if ((profile.avatar && !isSafeUrl(profile.avatar) && !isAvatarImage(profile.avatar)) || [profile.portfolioUrl, profile.githubUrl, profile.linkedinUrl].some((url) => url && !isSafeUrl(url)) || (profile.githubUrl && !isSafeUrl(profile.githubUrl, true)) || (profile.linkedinUrl && !/^https:\/\/(www\.)?linkedin\.com\//i.test(profile.linkedinUrl))) {
+      setStatus("Choose a gallery photo or use valid HTTPS avatar, portfolio, GitHub, and LinkedIn links.");
       return;
     }
 
@@ -130,6 +133,23 @@ export default function EditProfilePanel({
     }
   }
 
+  async function selectAvatar(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setIsPreparingAvatar(true);
+    setStatus("Preparing your avatar...");
+    try {
+      const avatar = await compressAvatarImage(file);
+      setProfile((current) => ({ ...current, avatar }));
+      setStatus("Photo ready. Select Save profile to publish it.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "The photo could not be prepared.");
+    } finally {
+      setIsPreparingAvatar(false);
+      event.target.value = "";
+    }
+  }
+
   return (
     <section
       className={`rounded-[32px] border p-5 ${
@@ -147,9 +167,14 @@ export default function EditProfilePanel({
         <div className="space-y-4">
           <div className="flex items-center gap-4">
             <div className="relative h-16 w-16 overflow-hidden rounded-[24px]">
-              <Image src={isSafeUrl(profile.avatar) ? profile.avatar : viewer.avatar} alt={profile.name || viewer.name} fill unoptimized className="object-cover" />
+              <Image src={isDisplayableImageSource(profile.avatar) ? profile.avatar : viewer.avatar} alt={profile.name || viewer.name} fill unoptimized className="object-cover" />
             </div>
-            <label className="min-w-0 flex-1 text-sm">Avatar image URL<input type="url" maxLength={2048} value={profile.avatar} onChange={(event) => setProfile((current) => ({ ...current, avatar: event.target.value }))} placeholder="https://your-site.com/avatar.png" className={`mt-1 w-full rounded-xl border px-3 py-2 text-sm ${isFocusMode ? "border-slate-200 bg-slate-50 text-slate-900" : "border-white/10 bg-black/20 text-white"}`} /><span className="mt-1 block text-xs opacity-60">Direct uploads are unavailable. Use an image hosted elsewhere.</span></label>
+            <div className="min-w-0 flex-1 space-y-2 text-sm">
+              <button type="button" onClick={() => avatarInput.current?.click()} disabled={isPreparingAvatar || isSaving} className="inline-flex items-center gap-2 rounded-xl border border-current/15 px-3 py-2 font-semibold text-lumi-purple disabled:opacity-50"><ImagePlus className="h-4 w-4" />{isPreparingAvatar ? "Preparing photo..." : "Choose avatar from gallery"}</button>
+              <input ref={avatarInput} type="file" accept="image/*" className="hidden" onChange={(event) => void selectAvatar(event)} aria-label="Choose avatar from gallery" />
+              <label className="block">Or use an avatar image URL<input type="url" maxLength={2048} value={isAvatarImage(profile.avatar) ? "" : profile.avatar} onChange={(event) => setProfile((current) => ({ ...current, avatar: event.target.value }))} placeholder="https://your-site.com/avatar.png" className={`mt-1 w-full rounded-xl border px-3 py-2 text-sm ${isFocusMode ? "border-slate-200 bg-slate-50 text-slate-900" : "border-white/10 bg-black/20 text-white"}`} /></label>
+              <span className="block text-xs opacity-60">{isAvatarImage(profile.avatar) ? "Gallery photo selected. Save your profile, or paste a URL to replace it." : "Gallery photos are cropped and saved as small JPEG avatars in your Lumi profile."}</span>
+            </div>
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
@@ -205,7 +230,7 @@ export default function EditProfilePanel({
             <button
               type="button"
               onClick={() => void saveProfile()}
-              disabled={isSaving}
+              disabled={isSaving || isPreparingAvatar}
               className="inline-flex items-center gap-2 rounded-full bg-lumi-purple px-4 py-2 text-sm font-medium text-white disabled:opacity-70"
             >
               {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
