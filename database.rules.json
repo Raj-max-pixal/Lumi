@@ -1,3 +1,4 @@
+
 {
   "rules": {
     ".read": false,
@@ -74,6 +75,13 @@
       }
     },
     "hackathon": {
+      "projectVotes": {
+        ".read": true,
+        "$uid": {
+          ".write": "auth !== null && auth.uid === $uid",
+          ".validate": "newData.isString() && root.child('hackathon').child('projects').child(newData.val()).exists()"
+        }
+      },
       "projects": {
         ".read": true,
         ".indexOn": ["createdAt", "authorId"],
@@ -225,3 +233,4 @@
     }
   }
 }
+
