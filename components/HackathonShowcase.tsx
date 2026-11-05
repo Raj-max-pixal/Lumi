@@ -1,8 +1,3 @@
-Use '--' to separate paths from revisions, like this:
-'git <command> [<revision>...] -- [<file>...]'
-6f7d7e017aed7093795789567f23b91cf7bffe40
--encodedCommand
-dAByAGUAZQA=
 "use client";
 
 import Link from "next/link";
