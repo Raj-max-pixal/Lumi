@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import LumiShell from "@/components/LumiShell";
+import { Analytics } from '@vercel/analytics/next';
 
 export const metadata: Metadata = {
   title: "Lumi",
@@ -17,6 +18,7 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <LumiShell>{children}</LumiShell>
+        <Analytics />
       </body>
     </html>
   );
